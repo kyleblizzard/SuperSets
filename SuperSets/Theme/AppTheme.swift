@@ -37,7 +37,7 @@ enum AppColors {
         Color(light: 0xC8D0DC, dark: 0x1B3B5A)
     }
 
-    // MARK: Accent Colors
+    // MARK: Accent Colors (10% — Primary CTAs only)
 
     static var accent: Color {
         Color(light: 0x1565C0, dark: 0x2196F3)
@@ -45,6 +45,18 @@ enum AppColors {
 
     static var accentSecondary: Color {
         Color(light: 0x0097A7, dark: 0x00BCD4)
+    }
+
+    // MARK: Secondary Colors (30% — Section headers, decorative elements, warm accents)
+
+    /// Warm gold for achievements, secondary accents, section headers.
+    static var gold: Color {
+        Color(light: 0xC49000, dark: 0xFFD700)
+    }
+
+    /// Warm amber for softer secondary indicators.
+    static var warmAmber: Color {
+        Color(light: 0xB87A1A, dark: 0xF0C040)
     }
 
     // MARK: Semantic Colors

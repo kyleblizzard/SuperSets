@@ -227,6 +227,24 @@ struct ProfileView: View {
                     .pickerStyle(.segmented)
                     .frame(width: 140)
                 }
+
+                Divider().background(AppColors.divider)
+
+                HStack {
+                    Text("Input Method")
+                        .font(.subheadline)
+                        .foregroundStyle(AppColors.subtleText)
+                    Spacer()
+                    Picker("", selection: Binding<Bool>(
+                        get: { profile.useScrollWheelInput },
+                        set: { profile.useScrollWheelInput = $0 }
+                    )) {
+                        Text("Wheels").tag(true)
+                        Text("Keyboard").tag(false)
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(width: 160)
+                }
             }
         }
         .padding(16)
@@ -267,12 +285,12 @@ struct ProfileView: View {
 
     // MARK: - Reusable Components
 
-    /// Section header with a glass gem icon.
+    /// Section header with a glass gem icon — gold for 60-30-10 secondary tone.
     private func sectionHeader(_ title: String, icon: String) -> some View {
         HStack(spacing: 8) {
             Image(systemName: icon)
                 .font(.system(size: 12))
-                .foregroundStyle(AppColors.accent)
+                .foregroundStyle(AppColors.gold)
                 .frame(width: 26, height: 26)
                 .glassGem(.circle)
 

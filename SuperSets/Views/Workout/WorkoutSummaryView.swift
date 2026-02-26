@@ -90,7 +90,7 @@ struct WorkoutSummaryView: View {
         VStack(spacing: 4) {
             Image(systemName: icon)
                 .font(.system(size: 16))
-                .foregroundStyle(AppColors.accent)
+                .foregroundStyle(AppColors.gold)
 
             Text(value)
                 .font(.title3.bold().monospacedDigit())
@@ -111,7 +111,7 @@ struct WorkoutSummaryView: View {
         HStack(spacing: 10) {
             Image(systemName: "clock.fill")
                 .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(AppColors.accent)
+                .foregroundStyle(AppColors.gold)
                 .frame(width: 32, height: 32)
                 .glassGem(.circle)
 
@@ -138,7 +138,7 @@ struct WorkoutSummaryView: View {
             HStack(spacing: 6) {
                 Image(systemName: "note.text")
                     .font(.system(size: 12))
-                    .foregroundStyle(AppColors.accent)
+                    .foregroundStyle(AppColors.gold)
                     .frame(width: 28, height: 28)
                     .glassGem(.circle)
 
@@ -164,7 +164,7 @@ struct WorkoutSummaryView: View {
                 // Exercise icon — glass gem
                 Image(systemName: lift.muscleGroup.iconName)
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(AppColors.accent)
+                    .foregroundStyle(AppColors.gold)
                     .frame(width: 32, height: 32)
                     .glassGem(.circle)
 
@@ -175,7 +175,7 @@ struct WorkoutSummaryView: View {
 
                     Text(lift.muscleGroup.displayName)
                         .font(.caption)
-                        .foregroundStyle(AppColors.accent)
+                        .foregroundStyle(AppColors.gold)
                 }
 
                 Spacer()
