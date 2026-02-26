@@ -1,19 +1,11 @@
 // CalendarView.swift
 // Super Sets — The Workout Tracker
 //
-// A monthly calendar built from frosted glass circles.
-// Every surface is CLEAR glass — no tinting. Color comes from text/icons.
+// A monthly calendar built from glass gems and deep glass circles.
+// Every day is a polished glass gem. Workout days get full deep glass treatment.
 //
-// v0.003 GLASS FIX: Removed all .tint() from glass effects.
-// Glass is always clear/frosted. Blue chevron icons show through.
-// Day cells are subtle glass circles — workout days get a small
-// accent dot below the number. Today is bold blue text.
-//
-// LEARNING NOTE:
-// .glassEffect(.regular, in: .circle) = clear frosted glass circle
-// .glassEffect(.regular.interactive(), in: .circle) = same + tap feedback
-// These create the translucent, refractive "liquid glass" look.
-// Adding .tint() makes glass opaque — the opposite of what we want.
+// v2.0 — 10x LIQUID GLASS: 52pt cells, glass gems on all days, deep glass
+// workout days, slab month label, gem day-of-week headers, gem recent header icon.
 
 import SwiftUI
 import SwiftData
@@ -21,40 +13,34 @@ import SwiftData
 // MARK: - CalendarView
 
 struct CalendarView: View {
-    
+
     // MARK: Dependencies
-    
+
     var workoutManager: WorkoutManager
-    
+
     // MARK: State
-    
+
     @State private var displayedMonth = Date()
     @State private var selectedDate: Date?
     @State private var showingDetail = false
-    
+
     // MARK: Queries
 
-    // LEARNING NOTE:
-    // We fetch ALL workouts (no filter predicate) and filter in Swift below.
-    // This is because @Query with a predicate filter on an existing object's
-    // property (isActive: true → false) may not always trigger a reactive
-    // update. Fetching everything ensures any workout change — including
-    // ending an active workout — immediately refreshes the calendar.
     @Query(sort: \Workout.date, order: .reverse)
     private var allWorkouts: [Workout]
 
     private var completedWorkouts: [Workout] {
         allWorkouts.filter { !$0.isActive }
     }
-    
+
     // MARK: Private
-    
+
     private let calendar = Calendar.current
-    private let columns = Array(repeating: GridItem(.flexible(), spacing: 4), count: 7)
+    private let columns = Array(repeating: GridItem(.flexible(), spacing: 3), count: 7)
     private let daySymbols = Calendar.current.veryShortWeekdaySymbols
-    
+
     // MARK: Body
-    
+
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
@@ -69,7 +55,6 @@ struct CalendarView: View {
         .scrollIndicators(.hidden)
         .id(completedWorkouts.count)
         .onChange(of: allWorkouts.count) { _, _ in
-            // Force re-evaluation when workout count changes
             displayedMonth = displayedMonth
         }
         .sheet(isPresented: $showingDetail) {
@@ -80,11 +65,9 @@ struct CalendarView: View {
             }
         }
     }
-    
+
     // MARK: - Month Header
-    
-    /// Navigation arrows are CLEAR glass circles with visible blue chevrons.
-    /// Month label sits in a clear glass capsule.
+
     private var monthHeader: some View {
         GlassEffectContainer(spacing: 16.0) {
             HStack {
@@ -103,12 +86,13 @@ struct CalendarView: View {
 
                 Spacer()
 
+                // Month label in a glass slab capsule
                 Text(monthYearString)
                     .font(.title3.bold())
                     .foregroundStyle(AppColors.primaryText)
                     .padding(.horizontal, 20)
                     .padding(.vertical, 8)
-                    .glassEffect(.regular, in: .capsule)
+                    .glassSlab(.capsule)
 
                 Spacer()
 
@@ -127,33 +111,34 @@ struct CalendarView: View {
             }
         }
     }
-    
+
     // MARK: - Calendar Grid
-    
-    /// Day-of-week headers + date cells inside a glass card.
-    /// Each day is a small clear glass circle.
+
+    /// 52pt day cells, glass gem day-of-week headers, glass gem non-workout days,
+    /// deep glass workout days.
     private var calendarGrid: some View {
-        VStack(spacing: 6) {
-            // Day-of-week headers
-            LazyVGrid(columns: columns, spacing: 4) {
+        VStack(spacing: 5) {
+            // Day-of-week headers — glass gems
+            LazyVGrid(columns: columns, spacing: 3) {
                 ForEach(daySymbols, id: \.self) { day in
                     Text(day)
                         .font(.caption2.bold())
                         .foregroundStyle(AppColors.subtleText)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 4)
+                        .glassGem(.rect(cornerRadius: 6))
                 }
             }
-            
-            // Date cells
+
+            // Date cells — 52pt
             GlassEffectContainer(spacing: 8.0) {
-                LazyVGrid(columns: columns, spacing: 6) {
+                LazyVGrid(columns: columns, spacing: 5) {
                     ForEach(daysInMonth, id: \.self) { date in
                         if let date = date {
                             dayCell(for: date)
                         } else {
                             Color.clear
-                                .frame(height: 44)
+                                .frame(height: 52)
                         }
                     }
                 }
@@ -162,18 +147,13 @@ struct CalendarView: View {
         .padding(12)
         .glassCard()
     }
-    
-    /// A single day — clear glass circle. Color comes from text, not glass.
-    ///
-    /// States:
-    /// - **Workout day**: accent-colored number + small dot below
-    /// - **Today**: bold accent number
-    /// - **Regular day**: normal text on clear glass
+
+    /// A single day — 52pt. Workout days = deep glass, non-workout = glass gem.
     private func dayCell(for date: Date) -> some View {
         let hasWorkout = workout(for: date) != nil
         let isToday = calendar.isDateInToday(date)
         let day = calendar.component(.day, from: date)
-        
+
         return Button {
             if hasWorkout {
                 UIImpactFeedbackGenerator(style: .light).impactOccurred()
@@ -185,34 +165,32 @@ struct CalendarView: View {
         }
         .buttonStyle(.plain)
     }
-    
-    /// Day cell content with conditional deep glass for workout days.
+
     @ViewBuilder
     private func dayCellContent(day: Int, isToday: Bool, hasWorkout: Bool) -> some View {
         let content = VStack(spacing: 1) {
             Text("\(day)")
-                .font(.system(size: 14, weight: isToday || hasWorkout ? .bold : .regular).monospacedDigit())
+                .font(.system(size: 16, weight: isToday || hasWorkout ? .bold : .regular).monospacedDigit())
                 .foregroundStyle(
                     hasWorkout || isToday ? AppColors.accent : AppColors.primaryText
                 )
 
-            // Workout indicator dot
+            // Workout indicator dot — 5pt
             Circle()
                 .fill(hasWorkout ? AppColors.accent : Color.clear)
-                .frame(width: 4, height: 4)
+                .frame(width: 5, height: 5)
         }
-        .frame(width: 44, height: 44)
+        .frame(width: 52, height: 52)
 
         if hasWorkout {
             content.deepGlass(.circle)
         } else {
-            content.glassEffect(.regular, in: .circle)
+            content.glassGem(.circle)
         }
     }
 
     // MARK: - Recent Workouts List
-    
-    /// Recent workouts as clear glass capsule buttons.
+
     private var recentWorkoutsList: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 8) {
@@ -220,14 +198,14 @@ struct CalendarView: View {
                     .font(.system(size: 12))
                     .foregroundStyle(AppColors.accent)
                     .frame(width: 26, height: 26)
-                    .glassEffect(.regular, in: .circle)
-                
+                    .glassGem(.circle)
+
                 Text("Recent Workouts")
                     .font(.headline)
                     .foregroundStyle(AppColors.primaryText)
             }
             .padding(.horizontal, 4)
-            
+
             if completedWorkouts.isEmpty {
                 VStack(spacing: 8) {
                     Image(systemName: "figure.strengthtraining.traditional")
@@ -249,8 +227,7 @@ struct CalendarView: View {
             }
         }
     }
-    
-    /// A recent workout row — clear glass rounded rect with readable text.
+
     private func recentWorkoutRow(_ workout: Workout) -> some View {
         Button {
             selectedDate = workout.date
@@ -261,14 +238,14 @@ struct CalendarView: View {
                     Text(workout.formattedDate)
                         .font(.body.bold())
                         .foregroundStyle(AppColors.primaryText)
-                    
+
                     Text("\(workout.totalExercises) exercises · \(workout.totalSets) sets · \(workout.formattedDuration)")
                         .font(.caption)
                         .foregroundStyle(AppColors.subtleText)
                 }
-                
+
                 Spacer()
-                
+
                 Image(systemName: "chevron.right")
                     .font(.caption)
                     .foregroundStyle(AppColors.subtleText.opacity(0.5))
@@ -279,37 +256,37 @@ struct CalendarView: View {
         }
         .buttonStyle(.plain)
     }
-    
+
     // MARK: - Helpers
-    
+
     private var monthYearString: String {
         let formatter = DateFormatter()
         formatter.dateFormat = "MMMM yyyy"
         return formatter.string(from: displayedMonth)
     }
-    
+
     private var daysInMonth: [Date?] {
         let components = calendar.dateComponents([.year, .month], from: displayedMonth)
         guard let firstOfMonth = calendar.date(from: components),
               let range = calendar.range(of: .day, in: .month, for: firstOfMonth) else {
             return []
         }
-        
+
         let firstWeekday = calendar.component(.weekday, from: firstOfMonth)
         let emptyDays = firstWeekday - calendar.firstWeekday
         let paddedEmptyDays = (emptyDays + 7) % 7
-        
+
         var days: [Date?] = Array(repeating: nil, count: paddedEmptyDays)
-        
+
         for day in range {
             var dayComponents = components
             dayComponents.day = day
             days.append(calendar.date(from: dayComponents))
         }
-        
+
         return days
     }
-    
+
     private func workout(for date: Date) -> Workout? {
         completedWorkouts.first { workout in
             calendar.isDate(workout.date, inSameDayAs: date)
