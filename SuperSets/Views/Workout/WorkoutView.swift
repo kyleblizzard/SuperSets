@@ -44,6 +44,20 @@ struct WorkoutView: View {
     @State private var wheelWeight: Double = 135.0
     @State private var wheelReps: Int = 8
 
+    // MARK: Super Set State
+
+    /// Index of the lift currently being edited in the SS cycle-through panel.
+    @State private var superSetInputIndex: Int = 0
+    /// Per-lift wheel weight values keyed by lift name.
+    @State private var superSetWheelWeights: [String: Double] = [:]
+    /// Per-lift wheel reps values keyed by lift name.
+    @State private var superSetWheelReps: [String: Int] = [:]
+
+    // MARK: Timer State
+
+    /// When true, the center panel shows the rest timer instead of weight/reps input.
+    @State private var showTimerInCenter: Bool = false
+
     // MARK: Rotary Ring State
 
     /// Accumulated rotation angle in degrees. Each slot = 36 degrees.
@@ -91,25 +105,10 @@ struct WorkoutView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
+                // Top row: Add Lift (left) — unit label (center) — Super Set (right)
+                topButtonsRow
+
                 radialLiftRing
-
-                radialAddLiftButton
-
-                // Slot machine input panel (wheel mode)
-                if useWheelInput && workoutManager.selectedLift != nil {
-                    slotMachineInput
-                }
-
-                // Unit label
-                if let unit = workoutManager.userProfile?.preferredUnit {
-                    Text("Weight in \(unit.rawValue)")
-                        .font(.caption2)
-                        .foregroundStyle(AppColors.subtleText)
-                }
-
-                if workoutManager.activeWorkout != nil {
-                    centeredRestTimer
-                }
 
                 if workoutManager.selectedLift != nil {
                     combinedSetsView
@@ -236,6 +235,8 @@ struct WorkoutView: View {
     }
 
     private func selectLiftAtTop() {
+        // Don't change selected lift while building a super set
+        guard !workoutManager.isSuperSetMode else { return }
         let idx = topSlotIndex
         if idx < workoutManager.recentLifts.count {
             workoutManager.selectLift(workoutManager.recentLifts[idx])
@@ -294,16 +295,34 @@ struct WorkoutView: View {
                 let zOrder = Double(slotCount) - distFromTop / 36.0
 
                 if index < workoutManager.recentLifts.count {
+                    let lift = workoutManager.recentLifts[index]
+                    let inSS = workoutManager.isSuperSetMode && workoutManager.isInSuperSet(lift)
+
                     radialLiftCircle(
-                        for: workoutManager.recentLifts[index],
+                        for: lift,
                         size: circleSize,
-                        isTop: isAtTop
+                        isTop: isAtTop,
+                        inSuperSet: inSS
                     )
+                    .overlay {
+                        // Gold number badge for SS-selected orbs
+                        if inSS, let ssIdx = workoutManager.superSetIndex(of: lift) {
+                            Text("\(ssIdx)")
+                                .font(.system(size: 11, weight: .black, design: .rounded))
+                                .foregroundStyle(.white)
+                                .frame(width: 20, height: 20)
+                                .background(AppColors.gold, in: Circle())
+                                .offset(x: circleSize / 2 - 6, y: -circleSize / 2 + 6)
+                        }
+                    }
+                    .onTapGesture {
+                        if workoutManager.isSuperSetMode {
+                            workoutManager.toggleSuperSetLift(lift)
+                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        }
+                    }
                     .offset(x: x, y: y)
                     .zIndex(zOrder)
-                    .onTapGesture {
-                        animateToSlot(index)
-                    }
                 } else {
                     // Empty ghost placeholder — glass gem
                     Circle()
@@ -317,72 +336,180 @@ struct WorkoutView: View {
             }
 
             // Center input panel (fixed, does NOT rotate)
-            radialCenterInputPanel
+            if workoutManager.isSuperSetMode && !workoutManager.superSetLifts.isEmpty {
+                superSetCenterPanel
+            } else {
+                radialCenterInputPanel
+            }
         }
         .frame(width: ringSize, height: ringSize)
         .contentShape(Circle().inset(by: -20))
         .gesture(isInputFocused ? nil : ringDragGesture)
     }
 
-    /// Add Lift button — fixed below the ring, always tappable.
-    private var radialAddLiftButton: some View {
-        Button {
-            showingLiftLibrary = true
-        } label: {
-            VStack(spacing: 2) {
-                Image(systemName: "plus")
-                    .font(.system(size: 16, weight: .bold))
-                Text("Add\nLift")
-                    .font(.system(size: 7, weight: .semibold))
-                    .multilineTextAlignment(.center)
-                    .lineLimit(2)
+    /// Top row: Add Lift (left), unit label (center), Super Set (right).
+    private var topButtonsRow: some View {
+        HStack {
+            // Add Lift — upper left
+            Button {
+                showingLiftLibrary = true
+            } label: {
+                VStack(spacing: 2) {
+                    Image(systemName: "plus")
+                        .font(.system(size: 14, weight: .bold))
+                    Text("Add Lift")
+                        .font(.system(size: 7, weight: .semibold))
+                }
+                .foregroundStyle(AppColors.accent)
+                .frame(width: 50, height: 50)
+                .deepGlass(.circle)
             }
-            .foregroundStyle(AppColors.accent)
-            .frame(width: circleSize, height: circleSize)
-            .deepGlass(.circle)
+            .buttonStyle(.plain)
+
+            Spacer()
+
+            // Unit label (center)
+            if let unit = workoutManager.userProfile?.preferredUnit {
+                Text("Weight in \(unit.rawValue)")
+                    .font(.caption2)
+                    .foregroundStyle(AppColors.subtleText)
+            }
+
+            Spacer()
+
+            // Super Set — upper right
+            Button {
+                withAnimation(AppAnimation.spring) {
+                    if workoutManager.isSuperSetMode {
+                        workoutManager.exitSuperSetMode()
+                        superSetInputIndex = 0
+                        superSetWheelWeights = [:]
+                        superSetWheelReps = [:]
+                    } else {
+                        workoutManager.enterSuperSetMode()
+                        superSetInputIndex = 0
+                        superSetWheelWeights = [:]
+                        superSetWheelReps = [:]
+                    }
+                }
+                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+            } label: {
+                VStack(spacing: 2) {
+                    Image(systemName: "link.circle")
+                        .font(.system(size: 14, weight: .bold))
+                    Text("Super Set")
+                        .font(.system(size: 7, weight: .semibold))
+                }
+                .foregroundStyle(workoutManager.isSuperSetMode ? AppColors.gold : AppColors.accent)
+                .frame(width: 50, height: 50)
+                .deepGlass(.circle, isActive: workoutManager.isSuperSetMode)
+            }
+            .buttonStyle(.plain)
         }
-        .buttonStyle(.plain)
     }
 
     /// A lift circle on the ring.
-    private func radialLiftCircle(for lift: LiftDefinition, size: CGFloat, isTop: Bool) -> some View {
+    private func radialLiftCircle(for lift: LiftDefinition, size: CGFloat, isTop: Bool, inSuperSet: Bool = false) -> some View {
         Text(twoWordName(lift.name))
             .font(.system(size: 9, weight: .semibold))
             .lineLimit(2)
             .minimumScaleFactor(0.7)
             .multilineTextAlignment(.center)
-            .foregroundStyle(isTop ? AppColors.accent : AppColors.primaryText)
+            .foregroundStyle(inSuperSet ? AppColors.gold : (isTop ? AppColors.accent : AppColors.primaryText))
             .frame(width: size, height: size)
-            .deepGlass(.circle, isActive: isTop)
+            .deepGlass(.circle, isActive: isTop || inSuperSet)
     }
 
     /// Center of the rotary ring.
-    /// Wheel mode: lift name + muscle icon (input is below ring in slot machine panel).
-    /// Keyboard mode: weight/reps text fields + log button.
+    /// Three modes: timer overlay, weight/reps wheel input, or keyboard text fields.
     private var radialCenterInputPanel: some View {
         Group {
-            if let lift = workoutManager.selectedLift {
+            if showTimerInCenter && workoutManager.activeWorkout != nil {
+                centerTimerPanel
+            } else if let lift = workoutManager.selectedLift {
                 if useWheelInput {
-                    // Wheel mode — show lift info prominently, input is below ring
-                    VStack(spacing: 6) {
-                        Image(systemName: lift.muscleGroup.iconName)
-                            .font(.system(size: 24, weight: .semibold))
-                            .foregroundStyle(AppColors.gold)
-
+                    // Wheel mode — compact pickers + circular LOG
+                    VStack(spacing: 0) {
                         Text(lift.name)
-                            .font(.system(size: 13, weight: .bold))
-                            .foregroundStyle(AppColors.primaryText)
-                            .lineLimit(2)
-                            .minimumScaleFactor(0.6)
-                            .multilineTextAlignment(.center)
-
-                        Text(lift.muscleGroup.displayName)
-                            .font(.system(size: 9))
+                            .font(.system(size: 10, weight: .bold))
                             .foregroundStyle(AppColors.subtleText)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
+
+                        HStack(spacing: 4) {
+                            // Weight column with label
+                            VStack(spacing: 0) {
+                                Text("Weight")
+                                    .font(.system(size: 8, weight: .bold))
+                                    .foregroundStyle(AppColors.subtleText)
+                                Picker("Weight", selection: $wheelWeight) {
+                                    ForEach(weightOptions, id: \.self) { value in
+                                        Text(formatWheelWeight(value))
+                                            .font(.system(size: 18, weight: .bold, design: .rounded).monospacedDigit())
+                                            .tag(value)
+                                    }
+                                }
+                                .pickerStyle(.wheel)
+                                .frame(width: 72, height: 90)
+                                .clipped()
+                            }
+
+                            // Reps column with label
+                            VStack(spacing: 0) {
+                                Text("Reps")
+                                    .font(.system(size: 8, weight: .bold))
+                                    .foregroundStyle(AppColors.subtleText)
+                                Picker("Reps", selection: $wheelReps) {
+                                    ForEach(1...99, id: \.self) { value in
+                                        Text("\(value)")
+                                            .font(.system(size: 18, weight: .bold, design: .rounded).monospacedDigit())
+                                            .tag(value)
+                                    }
+                                }
+                                .pickerStyle(.wheel)
+                                .frame(width: 72, height: 90)
+                                .clipped()
+                            }
+                        }
+
+                        // Circular LOG button + timer shortcut
+                        HStack(spacing: 8) {
+                            // Timer button
+                            if workoutManager.activeWorkout != nil {
+                                Button {
+                                    withAnimation(AppAnimation.spring) {
+                                        showTimerInCenter = true
+                                    }
+                                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                                } label: {
+                                    Image(systemName: "timer")
+                                        .font(.system(size: 12, weight: .bold))
+                                        .foregroundStyle(timerManager.isRunning ? AppColors.positive : AppColors.subtleText)
+                                        .frame(width: 32, height: 32)
+                                        .deepGlass(.circle)
+                                }
+                                .buttonStyle(.plain)
+                            }
+
+                            Button { logSetAction() } label: {
+                                Text(showSetLogged ? "\u{2713}" : "LOG")
+                                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                                    .foregroundStyle(showSetLogged ? AppColors.positive : AppColors.accent)
+                                    .frame(width: 50, height: 50)
+                                    .deepGlass(.circle)
+                            }
+                            .buttonStyle(.plain)
+                        }
                     }
-                    .frame(width: 140, height: 140)
+                    .frame(width: 160, height: 160)
+                    .onChange(of: wheelWeight) { _, newValue in
+                        workoutManager.weightInput = formatWheelWeight(newValue)
+                    }
+                    .onChange(of: wheelReps) { _, newValue in
+                        workoutManager.repsInput = "\(newValue)"
+                    }
                 } else {
-                    // Keyboard mode — text fields + log button in center
+                    // Keyboard mode — text fields + circular log button
                     VStack(spacing: 6) {
                         Text(lift.name)
                             .font(.system(size: 10, weight: .bold))
@@ -391,35 +518,63 @@ struct WorkoutView: View {
                             .minimumScaleFactor(0.7)
 
                         HStack(spacing: 4) {
-                            TextField("Wt", text: $workoutManager.weightInput)
-                                .keyboardType(.decimalPad)
-                                .focused($isInputFocused)
-                                .font(.system(size: 14, weight: .bold).monospacedDigit())
-                                .foregroundStyle(AppColors.primaryText)
-                                .multilineTextAlignment(.center)
-                                .frame(width: 58, height: 36)
-                                .glassField(cornerRadius: 8)
+                            VStack(spacing: 2) {
+                                Text("Weight")
+                                    .font(.system(size: 8, weight: .bold))
+                                    .foregroundStyle(AppColors.subtleText)
+                                TextField("Wt", text: $workoutManager.weightInput)
+                                    .keyboardType(.decimalPad)
+                                    .focused($isInputFocused)
+                                    .font(.system(size: 14, weight: .bold).monospacedDigit())
+                                    .foregroundStyle(AppColors.primaryText)
+                                    .multilineTextAlignment(.center)
+                                    .frame(width: 58, height: 36)
+                                    .glassField(cornerRadius: 8)
+                            }
 
-                            TextField("Rps", text: $workoutManager.repsInput)
-                                .keyboardType(.numberPad)
-                                .focused($isInputFocused)
-                                .font(.system(size: 14, weight: .bold).monospacedDigit())
-                                .foregroundStyle(AppColors.primaryText)
-                                .multilineTextAlignment(.center)
-                                .frame(width: 58, height: 36)
-                                .glassField(cornerRadius: 8)
+                            VStack(spacing: 2) {
+                                Text("Reps")
+                                    .font(.system(size: 8, weight: .bold))
+                                    .foregroundStyle(AppColors.subtleText)
+                                TextField("Rps", text: $workoutManager.repsInput)
+                                    .keyboardType(.numberPad)
+                                    .focused($isInputFocused)
+                                    .font(.system(size: 14, weight: .bold).monospacedDigit())
+                                    .foregroundStyle(AppColors.primaryText)
+                                    .multilineTextAlignment(.center)
+                                    .frame(width: 58, height: 36)
+                                    .glassField(cornerRadius: 8)
+                            }
                         }
 
-                        Button { logSetAction() } label: {
-                            Image(systemName: showSetLogged ? "checkmark" : "plus")
-                                .font(.system(size: 20, weight: .bold))
-                                .foregroundStyle(showSetLogged ? AppColors.positive : AppColors.accent)
-                                .frame(width: 50, height: 50)
-                                .deepGlass(.circle)
+                        HStack(spacing: 8) {
+                            if workoutManager.activeWorkout != nil {
+                                Button {
+                                    withAnimation(AppAnimation.spring) {
+                                        showTimerInCenter = true
+                                    }
+                                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                                } label: {
+                                    Image(systemName: "timer")
+                                        .font(.system(size: 12, weight: .bold))
+                                        .foregroundStyle(timerManager.isRunning ? AppColors.positive : AppColors.subtleText)
+                                        .frame(width: 32, height: 32)
+                                        .deepGlass(.circle)
+                                }
+                                .buttonStyle(.plain)
+                            }
+
+                            Button { logSetAction() } label: {
+                                Image(systemName: showSetLogged ? "checkmark" : "plus")
+                                    .font(.system(size: 20, weight: .bold))
+                                    .foregroundStyle(showSetLogged ? AppColors.positive : AppColors.accent)
+                                    .frame(width: 50, height: 50)
+                                    .deepGlass(.circle)
+                            }
+                            .buttonStyle(.plain)
                         }
-                        .buttonStyle(.plain)
                     }
-                    .frame(width: 140, height: 140)
+                    .frame(width: 160, height: 160)
                 }
             } else {
                 // No lift selected hint
@@ -437,31 +592,231 @@ struct WorkoutView: View {
         }
     }
 
-    // MARK: - Centered Rest Timer
+    // MARK: - Super Set Center Panel
 
-    /// Standalone centered rest timer in a glass slab.
-    /// Timer icon in a glass gem, big formatted time, play/stop button.
-    private var centeredRestTimer: some View {
-        VStack(spacing: 10) {
-            // Timer icon gem
-            Image(systemName: "timer")
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(AppColors.gold)
-                .frame(width: 36, height: 36)
-                .glassGem(.circle)
+    /// Cycle-through center panel for super set mode.
+    /// Shows one lift at a time with weight/reps pickers and prev/next/LOG navigation.
+    private var superSetCenterPanel: some View {
+        let lifts = workoutManager.superSetLifts
+        let safeIndex = min(superSetInputIndex, max(lifts.count - 1, 0))
+        let currentLift = lifts.isEmpty ? nil : lifts[safeIndex]
+        let isLastLift = safeIndex == lifts.count - 1
+
+        return VStack(spacing: 2) {
+            // Header
+            HStack(spacing: 4) {
+                Image(systemName: "link")
+                    .font(.system(size: 8, weight: .bold))
+                Text("SUPER SET")
+                    .font(.system(size: 8, weight: .black, design: .rounded))
+            }
+            .foregroundStyle(AppColors.gold)
+
+            if let lift = currentLift {
+                // Lift name with index
+                Text("\(lift.name) (\(safeIndex + 1)/\(lifts.count))")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(AppColors.subtleText)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+
+                // Wheel pickers with labels
+                HStack(spacing: 4) {
+                    VStack(spacing: 0) {
+                        Text("Weight")
+                            .font(.system(size: 8, weight: .bold))
+                            .foregroundStyle(AppColors.subtleText)
+                        Picker("Weight", selection: superSetWeightBinding(for: lift.name)) {
+                            ForEach(weightOptions, id: \.self) { value in
+                                Text(formatWheelWeight(value))
+                                    .font(.system(size: 18, weight: .bold, design: .rounded).monospacedDigit())
+                                    .tag(value)
+                            }
+                        }
+                        .pickerStyle(.wheel)
+                        .frame(width: 72, height: 80)
+                        .clipped()
+                    }
+
+                    VStack(spacing: 0) {
+                        Text("Reps")
+                            .font(.system(size: 8, weight: .bold))
+                            .foregroundStyle(AppColors.subtleText)
+                        Picker("Reps", selection: superSetRepsBinding(for: lift.name)) {
+                            ForEach(1...99, id: \.self) { value in
+                                Text("\(value)")
+                                    .font(.system(size: 18, weight: .bold, design: .rounded).monospacedDigit())
+                                    .tag(value)
+                            }
+                        }
+                        .pickerStyle(.wheel)
+                        .frame(width: 72, height: 80)
+                        .clipped()
+                    }
+                }
+
+                // Navigation row: prev / LOG or Next / next
+                HStack(spacing: 6) {
+                    Button {
+                        saveSuperSetWheelValues()
+                        withAnimation(AppAnimation.quick) {
+                            superSetInputIndex = max(0, safeIndex - 1)
+                        }
+                    } label: {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(safeIndex > 0 ? AppColors.accent : AppColors.subtleText.opacity(0.3))
+                            .frame(width: 30, height: 28)
+                            .deepGlass(.circle)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(safeIndex == 0)
+
+                    // LOG (circle) or Next
+                    Button {
+                        saveSuperSetWheelValues()
+                        if isLastLift {
+                            logSuperSetAction()
+                        } else {
+                            withAnimation(AppAnimation.quick) {
+                                superSetInputIndex = safeIndex + 1
+                            }
+                        }
+                    } label: {
+                        Text(isLastLift ? (showSetLogged ? "\u{2713}" : "LOG") : "Next")
+                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                            .foregroundStyle(isLastLift
+                                ? (showSetLogged ? AppColors.positive : AppColors.gold)
+                                : AppColors.accent)
+                            .frame(width: 44, height: 44)
+                            .deepGlass(.circle)
+                    }
+                    .buttonStyle(.plain)
+
+                    Button {
+                        saveSuperSetWheelValues()
+                        withAnimation(AppAnimation.quick) {
+                            superSetInputIndex = min(lifts.count - 1, safeIndex + 1)
+                        }
+                    } label: {
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(!isLastLift ? AppColors.accent : AppColors.subtleText.opacity(0.3))
+                            .frame(width: 30, height: 28)
+                            .deepGlass(.circle)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(isLastLift)
+                }
+            }
+        }
+        .frame(width: 160, height: 160)
+    }
+
+    /// Binding for the super set wheel weight for a given lift name.
+    private func superSetWeightBinding(for liftName: String) -> Binding<Double> {
+        Binding<Double>(
+            get: { superSetWheelWeights[liftName] ?? 135.0 },
+            set: { newValue in
+                superSetWheelWeights[liftName] = newValue
+                workoutManager.superSetWeights[liftName] = formatWheelWeight(newValue)
+            }
+        )
+    }
+
+    /// Binding for the super set wheel reps for a given lift name.
+    private func superSetRepsBinding(for liftName: String) -> Binding<Int> {
+        Binding<Int>(
+            get: { superSetWheelReps[liftName] ?? 8 },
+            set: { newValue in
+                superSetWheelReps[liftName] = newValue
+                workoutManager.superSetReps[liftName] = "\(newValue)"
+            }
+        )
+    }
+
+    /// Persist current wheel picker values into workoutManager before switching lifts.
+    private func saveSuperSetWheelValues() {
+        for lift in workoutManager.superSetLifts {
+            let name = lift.name
+            if let w = superSetWheelWeights[name] {
+                workoutManager.superSetWeights[name] = formatWheelWeight(w)
+            }
+            if let r = superSetWheelReps[name] {
+                workoutManager.superSetReps[name] = "\(r)"
+            }
+        }
+    }
+
+    /// Log the super set with haptic feedback and confirmation animation.
+    private func logSuperSetAction() {
+        saveSuperSetWheelValues()
+        let success = workoutManager.logSuperSet()
+        if success {
+            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+
+            withAnimation(AppAnimation.quick) {
+                showSetLogged = true
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                withAnimation { showSetLogged = false }
+            }
+
+            // Reset to first lift for next round
+            superSetInputIndex = 0
+
+            // Reset reps wheels (weights persist)
+            for lift in workoutManager.superSetLifts {
+                superSetWheelReps[lift.name] = 8
+            }
+
+            if let pr = workoutManager.newPRAlert {
+                prType = pr
+                UINotificationFeedbackGenerator().notificationOccurred(.success)
+                withAnimation(AppAnimation.spring) {
+                    showPRBadge = true
+                }
+                workoutManager.newPRAlert = nil
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                    withAnimation { showPRBadge = false }
+                }
+            }
+        }
+    }
+
+    // MARK: - Center Timer Panel
+
+    /// Timer view that takes over the ring center when activated.
+    private var centerTimerPanel: some View {
+        VStack(spacing: 8) {
+            // Close button
+            HStack {
+                Spacer()
+                Button {
+                    withAnimation(AppAnimation.spring) {
+                        showTimerInCenter = false
+                    }
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(AppColors.subtleText)
+                        .frame(width: 24, height: 24)
+                        .deepGlass(.circle)
+                }
+                .buttonStyle(.plain)
+            }
 
             Text("Rest Timer")
-                .font(.caption2.bold())
+                .font(.system(size: 10, weight: .bold))
                 .foregroundStyle(AppColors.subtleText)
 
-            // Big formatted time
             Text(timerManager.formattedTime)
-                .font(.system(size: 36, weight: .bold, design: .rounded).monospacedDigit())
+                .font(.system(size: 32, weight: .bold, design: .rounded).monospacedDigit())
                 .foregroundStyle(AppColors.primaryText)
                 .contentTransition(.numericText())
                 .animation(.linear(duration: 0.1), value: timerManager.elapsedSeconds)
 
-            // Play/Stop button
+            // Play / Stop button
             Button {
                 if timerManager.isRunning {
                     UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
@@ -474,15 +829,13 @@ struct WorkoutView: View {
                 Image(systemName: timerManager.isRunning ? "stop.fill" : "play.fill")
                     .font(.system(size: 20, weight: .bold))
                     .foregroundStyle(timerManager.isRunning ? AppColors.danger : AppColors.positive)
-                    .frame(width: 54, height: 54)
+                    .frame(width: 50, height: 50)
                     .deepGlass(.circle)
             }
             .buttonStyle(.plain)
         }
-        .padding(.vertical, 16)
-        .padding(.horizontal, 24)
-        .frame(maxWidth: .infinity)
-        .glassSlab(.rect(cornerRadius: 20))
+        .frame(width: 160, height: 160)
+        .transition(.scale.combined(with: .opacity))
     }
 
     // MARK: - Combined Sets View (Today + Comparison Side-by-Side)
@@ -552,18 +905,23 @@ struct WorkoutView: View {
             .padding(.vertical, 6)
             .glassRow(cornerRadius: 10)
 
-            // Set rows
-            let todaySets = workoutManager.currentLiftSets
+            // Set rows — mixed regular + super set display
+            let displayRows = workoutManager.currentLiftDisplayRows
             let previousSets = workoutManager.previousSets
-            let maxSets = max(todaySets.count, previousSets.count)
 
-            if maxSets > 0 {
-                ForEach(0..<maxSets, id: \.self) { index in
-                    setRow(
-                        index: index,
-                        todaySet: index < todaySets.count ? todaySets[index] : nil,
-                        previousSet: index < previousSets.count ? previousSets[index] : nil
-                    )
+            if !displayRows.isEmpty {
+                ForEach(displayRows) { row in
+                    switch row {
+                    case .regular(let set):
+                        let prevIndex = set.setNumber - 1
+                        setRow(
+                            index: prevIndex,
+                            todaySet: set,
+                            previousSet: prevIndex < previousSets.count ? previousSets[prevIndex] : nil
+                        )
+                    case .superSet(let groupId, let setNumber, let sets):
+                        superSetDisplayGroup(groupId: groupId, setNumber: setNumber, sets: sets)
+                    }
                 }
             } else if previousSets.isEmpty {
                 Text("First time doing this lift \u{2014} set a baseline!")
@@ -571,6 +929,18 @@ struct WorkoutView: View {
                     .foregroundStyle(AppColors.subtleText)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
+            }
+
+            // Previous-only rows (if previous has more sets than today)
+            let todayCount = workoutManager.currentLiftSets.count
+            if previousSets.count > todayCount {
+                ForEach(todayCount..<previousSets.count, id: \.self) { index in
+                    setRow(
+                        index: index,
+                        todaySet: nil,
+                        previousSet: previousSets[index]
+                    )
+                }
             }
 
             // Workout elapsed time at the bottom of sets area
@@ -663,6 +1033,66 @@ struct WorkoutView: View {
         .glassRow(cornerRadius: 10)
     }
 
+    /// A grouped super set display block: header row + sub-rows per lift.
+    private func superSetDisplayGroup(groupId: String, setNumber: Int, sets: [WorkoutSet]) -> some View {
+        VStack(spacing: 4) {
+            // Header row
+            HStack {
+                Text("#\(setNumber)")
+                    .font(.caption.monospacedDigit().bold())
+                    .foregroundStyle(AppColors.subtleText)
+
+                HStack(spacing: 4) {
+                    Image(systemName: "link")
+                        .font(.system(size: 9, weight: .bold))
+                    Text("Super Set")
+                        .font(.caption.bold())
+                }
+                .foregroundStyle(AppColors.gold)
+
+                Spacer()
+
+                Button {
+                    withAnimation(AppAnimation.quick) {
+                        workoutManager.deleteSuperSetGroup(groupId)
+                    }
+                } label: {
+                    Image(systemName: "minus.circle.fill")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(AppColors.danger)
+                        .frame(width: 32, height: 32)
+                        .deepGlass(.circle)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+
+            // Sub-rows for each lift in the super set
+            ForEach(sets, id: \.timestamp) { set in
+                HStack(spacing: 8) {
+                    Text(set.liftDefinition?.name ?? "")
+                        .font(.caption.bold())
+                        .foregroundStyle(AppColors.subtleText)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+
+                    Spacer()
+
+                    Text(set.formattedDisplay)
+                        .font(.body.monospacedDigit().bold())
+                        .foregroundStyle(AppColors.primaryText)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 4)
+                .glassRow(cornerRadius: 8)
+            }
+        }
+        .padding(.vertical, 4)
+        .padding(.horizontal, 4)
+        .glassRow(cornerRadius: 10)
+    }
+
     /// Volume-based comparison: up green, down red, = gray, + extra set.
     @ViewBuilder
     private func comparisonArrow(today: WorkoutSet?, previous: WorkoutSet?) -> some View {
@@ -716,80 +1146,6 @@ struct WorkoutView: View {
         return diff
     }
 
-    // MARK: - Slot Machine Input Panel
-
-    /// Gamified wheel picker input — two spinning wheels for weight and reps
-    /// in a glass slab, with a prominent LOG SET button.
-    private var slotMachineInput: some View {
-        VStack(spacing: 12) {
-            // Section labels
-            HStack {
-                Text("WEIGHT (\(unitLabel))")
-                    .font(.caption.bold())
-                    .foregroundStyle(AppColors.gold)
-                    .frame(maxWidth: .infinity)
-
-                Text("REPS")
-                    .font(.caption.bold())
-                    .foregroundStyle(AppColors.gold)
-                    .frame(maxWidth: .infinity)
-            }
-
-            // Wheel pickers side by side
-            GlassEffectContainer(spacing: 8.0) {
-                HStack(spacing: 8) {
-                    Picker("Weight", selection: $wheelWeight) {
-                        ForEach(weightOptions, id: \.self) { value in
-                            Text(formatWheelWeight(value))
-                                .font(.system(size: 22, weight: .bold, design: .rounded).monospacedDigit())
-                                .tag(value)
-                        }
-                    }
-                    .pickerStyle(.wheel)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 140)
-                    .clipped()
-                    .glassRow(cornerRadius: 14)
-
-                    Picker("Reps", selection: $wheelReps) {
-                        ForEach(1...99, id: \.self) { value in
-                            Text("\(value)")
-                                .font(.system(size: 22, weight: .bold, design: .rounded).monospacedDigit())
-                                .tag(value)
-                        }
-                    }
-                    .pickerStyle(.wheel)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 140)
-                    .clipped()
-                    .glassRow(cornerRadius: 14)
-                }
-            }
-
-            // LOG SET button — big, prominent
-            Button { logSetAction() } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: showSetLogged ? "checkmark.circle.fill" : "plus.circle.fill")
-                        .font(.system(size: 22, weight: .bold))
-                    Text(showSetLogged ? "LOGGED!" : "LOG SET")
-                        .font(.system(size: 18, weight: .bold, design: .rounded))
-                }
-                .foregroundStyle(showSetLogged ? AppColors.positive : AppColors.accent)
-                .frame(maxWidth: .infinity)
-                .frame(height: 54)
-                .deepGlass(.rect(cornerRadius: 14))
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(16)
-        .glassSlab(.rect(cornerRadius: 20))
-        .onChange(of: wheelWeight) { _, newValue in
-            workoutManager.weightInput = formatWheelWeight(newValue)
-        }
-        .onChange(of: wheelReps) { _, newValue in
-            workoutManager.repsInput = "\(newValue)"
-        }
-    }
 
     // MARK: - Shared Log Action
 

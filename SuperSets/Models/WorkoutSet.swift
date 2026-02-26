@@ -37,7 +37,20 @@ final class WorkoutSet {
     
     /// When this set was logged. Used for ordering and time-based analysis.
     var timestamp: Date
-    
+
+    // MARK: Super Set Properties
+
+    /// UUID string shared by all sets logged together as one super set.
+    /// nil for regular (non-super-set) sets.
+    var superSetGroupId: String?
+
+    /// 0-based order within a super set group (e.g., 0 = first lift, 1 = second).
+    /// nil for regular sets.
+    var superSetOrder: Int?
+
+    /// Whether this set belongs to a super set group.
+    var isSuperSet: Bool { superSetGroupId != nil }
+
     // MARK: Relationships
     
     /// The workout session this set belongs to.
@@ -91,7 +104,9 @@ final class WorkoutSet {
         reps: Int,
         setNumber: Int,
         workout: Workout,
-        liftDefinition: LiftDefinition
+        liftDefinition: LiftDefinition,
+        superSetGroupId: String? = nil,
+        superSetOrder: Int? = nil
     ) {
         self.weight = weight
         self.reps = reps
@@ -99,5 +114,7 @@ final class WorkoutSet {
         self.timestamp = Date()
         self.workout = workout
         self.liftDefinition = liftDefinition
+        self.superSetGroupId = superSetGroupId
+        self.superSetOrder = superSetOrder
     }
 }
