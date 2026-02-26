@@ -61,9 +61,9 @@ struct WorkoutView: View {
 
     // MARK: Constants
 
-    private let ringSize: CGFloat = 288
-    private let ringRadius: CGFloat = 120
-    private let circleSize: CGFloat = 48
+    private let ringSize: CGFloat = 320
+    private let ringRadius: CGFloat = 135
+    private let circleSize: CGFloat = 60
     /// 10 lift slots on the ring (Add Lift is separate, below the ring).
     private let slotCount = 10
     /// Degrees per slot: 360 / 10 = 36.
@@ -311,13 +311,12 @@ struct WorkoutView: View {
                         animateToSlot(index)
                     }
                 } else {
-                    // Empty ghost placeholder
+                    // Empty ghost placeholder — bare glass, no deepGlass
                     Circle()
                         .fill(.clear)
                         .frame(width: circleSize, height: circleSize)
                         .glassEffect(.regular, in: .circle)
                         .opacity(0.25)
-                        .shadow(color: .black.opacity(0.12), radius: 4, y: 2)
                         .offset(x: x, y: y)
                         .zIndex(zOrder)
                 }
@@ -346,13 +345,12 @@ struct WorkoutView: View {
             }
             .foregroundStyle(AppColors.accent)
             .frame(width: circleSize, height: circleSize)
-            .glassEffect(.regular.interactive(), in: .circle)
-            .shadow(color: .black.opacity(0.18), radius: 6, y: 3)
+            .deepGlass(.circle)
         }
         .buttonStyle(.plain)
     }
 
-    /// A lift circle on the ring. When `isTop` is true, it glows as the active lift.
+    /// A lift circle on the ring. When `isTop` is true, it glows via deepGlass active state.
     private func radialLiftCircle(for lift: LiftDefinition, size: CGFloat, isTop: Bool) -> some View {
         Text(twoWordName(lift.name))
             .font(.system(size: 9, weight: .semibold))
@@ -361,19 +359,7 @@ struct WorkoutView: View {
             .multilineTextAlignment(.center)
             .foregroundStyle(isTop ? AppColors.accent : AppColors.primaryText)
             .frame(width: size, height: size)
-            .glassEffect(.regular.interactive(), in: .circle)
-            .shadow(color: .black.opacity(0.18), radius: 5, y: 3)
-            .overlay {
-                if isTop {
-                    Circle()
-                        .stroke(AppColors.accent, lineWidth: 2)
-                        .shadow(color: AppColors.accent.opacity(0.5), radius: 12)
-                        .shadow(color: AppColors.accent.opacity(0.3), radius: 24)
-                        .shadow(color: AppColors.accent.opacity(0.15), radius: 36)
-                }
-            }
-            .scaleEffect(isTop ? 1.12 : 1.0)
-            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isTop)
+            .deepGlass(.circle, isActive: isTop)
     }
 
     /// Center input panel — weight/reps fields + log button, or a "Select a lift" hint.
@@ -396,7 +382,7 @@ struct WorkoutView: View {
                             .font(.system(size: 14, weight: .bold).monospacedDigit())
                             .foregroundStyle(AppColors.primaryText)
                             .multilineTextAlignment(.center)
-                            .frame(width: 52, height: 30)
+                            .frame(width: 58, height: 36)
                             .background {
                                 RoundedRectangle(cornerRadius: 8)
                                     .fill(AppColors.inputFill)
@@ -412,7 +398,7 @@ struct WorkoutView: View {
                             .font(.system(size: 14, weight: .bold).monospacedDigit())
                             .foregroundStyle(AppColors.primaryText)
                             .multilineTextAlignment(.center)
-                            .frame(width: 52, height: 30)
+                            .frame(width: 58, height: 36)
                             .background {
                                 RoundedRectangle(cornerRadius: 8)
                                     .fill(AppColors.inputFill)
@@ -450,14 +436,14 @@ struct WorkoutView: View {
                         }
                     } label: {
                         Image(systemName: showSetLogged ? "checkmark" : "plus")
-                            .font(.system(size: 18, weight: .bold))
+                            .font(.system(size: 20, weight: .bold))
                             .foregroundStyle(showSetLogged ? AppColors.positive : AppColors.accent)
-                            .frame(width: 40, height: 40)
-                            .glassEffect(.regular.interactive(), in: .circle)
+                            .frame(width: 50, height: 50)
+                            .deepGlass(.circle)
                     }
                     .buttonStyle(.plain)
                 }
-                .frame(width: 130, height: 130)
+                .frame(width: 140, height: 140)
             } else {
                 // No lift selected hint
                 VStack(spacing: 6) {
@@ -469,7 +455,7 @@ struct WorkoutView: View {
                         .foregroundStyle(AppColors.subtleText)
                         .multilineTextAlignment(.center)
                 }
-                .frame(width: 130, height: 130)
+                .frame(width: 140, height: 140)
             }
         }
     }
@@ -535,13 +521,10 @@ struct WorkoutView: View {
                     }
                 } label: {
                     Image(systemName: timerManager.isRunning ? "stop.fill" : "play.fill")
-                        .font(.system(size: 13, weight: .bold))
+                        .font(.system(size: 15, weight: .bold))
                         .foregroundStyle(timerManager.isRunning ? AppColors.danger : AppColors.positive)
-                        .frame(width: 36, height: 36)
-                        .glassEffect(
-                            .regular.interactive(),
-                            in: .circle
-                        )
+                        .frame(width: 46, height: 46)
+                        .deepGlass(.circle)
                 }
                 .buttonStyle(.plain)
             }
@@ -584,12 +567,9 @@ struct WorkoutView: View {
                             .font(.caption.bold())
                     }
                     .foregroundStyle(AppColors.danger)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .glassEffect(
-                        .regular.interactive(),
-                        in: .capsule
-                    )
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .deepGlass(.capsule)
                 }
                 .buttonStyle(.plain)
             }
@@ -665,10 +645,10 @@ struct WorkoutView: View {
                         }
                     } label: {
                         Image(systemName: "minus.circle.fill")
-                            .font(.system(size: 14, weight: .semibold))
+                            .font(.system(size: 16, weight: .semibold))
                             .foregroundStyle(AppColors.danger)
-                            .frame(width: 28, height: 28)
-                            .glassEffect(.regular.interactive(), in: .circle)
+                            .frame(width: 40, height: 40)
+                            .deepGlass(.circle)
                     }
                     .buttonStyle(.plain)
                 } else {

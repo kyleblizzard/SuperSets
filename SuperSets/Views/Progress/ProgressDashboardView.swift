@@ -228,7 +228,7 @@ struct ProgressDashboardView: View {
                 sectionHeader("Body Weight", icon: "scalemass.fill")
                 Spacer()
                 
-                // Log Weight button — glossy glass capsule
+                // Log Weight button — deep glass capsule
                 Button {
                     // Pre-fill with the user's profile weight if no entries exist
                     if let latest = workoutManager.latestWeight() {
@@ -245,12 +245,9 @@ struct ProgressDashboardView: View {
                             .font(.caption.bold())
                     }
                     .foregroundStyle(AppColors.accent)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .glassEffect(
-                        .regular.interactive(),
-                        in: .capsule
-                    )
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .deepGlass(.capsule)
                 }
                 .buttonStyle(.plain)
             }
@@ -384,10 +381,7 @@ struct ProgressDashboardView: View {
                     .foregroundStyle(AppColors.accent)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
-                    .glassEffect(
-                        .regular.interactive(),
-                        in: .rect(cornerRadius: 14)
-                    )
+                    .deepGlass(.rect(cornerRadius: 14))
             }
             .buttonStyle(.plain)
             .padding(.horizontal, 32)
