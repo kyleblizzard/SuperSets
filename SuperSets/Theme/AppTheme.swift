@@ -156,6 +156,8 @@ extension Color {
             switch traitCollection.userInterfaceStyle {
             case .light:  return UIColor(hex: light)
             case .dark:   return UIColor(hex: dark)
+            case .unspecified:
+                return UIColor(hex: dark)
             @unknown default: return UIColor(hex: dark)
             }
         })
