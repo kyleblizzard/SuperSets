@@ -277,13 +277,22 @@ final class WorkoutManager {
         if activeWorkout == nil {
             startWorkout()
         }
-        
+
         selectedLift = lift
         loadComparisonData(for: lift)
-        updateRecentLifts(with: lift)
-        
+        // Only add if not already on the ring (preserves ring positions for rotary)
+        if !recentLifts.contains(where: { $0.name == lift.name }) {
+            addToRecentLifts(lift)
+        }
+
         lift.lastUsedDate = Date()
         save()
+    }
+
+    /// Index of the currently selected lift in recentLifts (for rotary ring positioning).
+    var selectedLiftIndex: Int? {
+        guard let selected = selectedLift else { return nil }
+        return recentLifts.firstIndex(where: { $0.name == selected.name })
     }
     
     // MARK: - Comparison Data
@@ -355,9 +364,8 @@ final class WorkoutManager {
     
     // MARK: - Recent Lifts Management
     
-    /// Move a lift to the front of the recent lifts list (max 10).
-    private func updateRecentLifts(with lift: LiftDefinition) {
-        recentLifts.removeAll { $0.name == lift.name }
+    /// Insert a new lift at the front of the ring (max 10). Does NOT reorder existing lifts.
+    private func addToRecentLifts(_ lift: LiftDefinition) {
         recentLifts.insert(lift, at: 0)
         if recentLifts.count > 10 {
             recentLifts = Array(recentLifts.prefix(10))
