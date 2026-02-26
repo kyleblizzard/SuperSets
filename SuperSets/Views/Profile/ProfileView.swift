@@ -2,17 +2,9 @@
 // Super Sets — The Workout Tracker
 //
 // User profile with personal info, measurements, preferences, and RMR.
-// Every section header uses a glass circle icon, the profile photo sits
-// in a glass circle frame, and the RMR is displayed in a tinted glass orb.
 //
-// v0.003 OVERHAUL: Glass circle section icons, glass photo frame,
-// glass RMR display orb. All interactive elements maintain glass styling.
-//
-// LEARNING NOTE:
-// PhotosPicker (iOS 16+) presents the system photo picker and returns
-// a PhotosPickerItem, which we load as Data for storage in SwiftData.
-// The photo is stored with @Attribute(.externalStorage) on UserProfile
-// to keep the main database lightweight.
+// v2.0 — 10x LIQUID GLASS: Deep glass photo frame, deep glass RMR orb,
+// glass gem section header icons. All .glassCard() auto-upgraded to slabs.
 
 import SwiftUI
 import PhotosUI
@@ -21,17 +13,17 @@ import SwiftData
 // MARK: - ProfileView
 
 struct ProfileView: View {
-    
+
     // MARK: Dependencies
-    
+
     @Bindable var workoutManager: WorkoutManager
-    
+
     // MARK: State
-    
+
     @State private var selectedPhotoItem: PhotosPickerItem?
-    
+
     // MARK: Body
-    
+
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
@@ -48,16 +40,10 @@ struct ProfileView: View {
         .scrollIndicators(.hidden)
         .scrollDismissesKeyboard(.interactively)
     }
-    
+
     // MARK: - Profile Header
-    
-    /// Profile photo in a glass circle frame with a tap-to-change prompt.
-    ///
-    /// LEARNING NOTE:
-    /// The photo is clipped to a circle and then wrapped in a glass circle.
-    /// The glass sits BEHIND the photo (as an overlay border effect) creating
-    /// a frosted glass frame around the image. This is more visually interesting
-    /// than a plain circle clip because the glass adds refraction at the edges.
+
+    /// Profile photo in a deep glass circle frame.
     private var profileHeader: some View {
         VStack(spacing: 12) {
             PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
@@ -75,7 +61,7 @@ struct ProfileView: View {
                 }
                 .frame(width: 88, height: 88)
                 .clipShape(Circle())
-                .glassEffect(.regular, in: .circle)
+                .deepGlass(.circle)
             }
             .onChange(of: selectedPhotoItem) { _, newItem in
                 Task {
@@ -84,7 +70,7 @@ struct ProfileView: View {
                     }
                 }
             }
-            
+
             Text("Tap to change photo")
                 .font(.caption2)
                 .foregroundStyle(AppColors.subtleText)
@@ -93,31 +79,31 @@ struct ProfileView: View {
         .frame(maxWidth: .infinity)
         .glassCard()
     }
-    
+
     // MARK: - Personal Info
-    
+
     private var personalInfoSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             sectionHeader("Personal Info", icon: "person.fill")
-            
+
             if let profile = workoutManager.userProfile {
                 profileField("Name", binding: Binding(
                     get: { profile.name },
                     set: { profile.name = $0 }
                 ))
-                
+
                 profileStepper("Age", value: Binding(
                     get: { profile.age },
                     set: { profile.age = $0 }
                 ), range: 13...100)
-                
+
                 HStack {
                     Text("Sex")
                         .font(.subheadline)
                         .foregroundStyle(AppColors.subtleText)
-                    
+
                     Spacer()
-                    
+
                     Picker("", selection: Binding(
                         get: { profile.biologicalSex },
                         set: { profile.biologicalSex = $0 }
@@ -134,13 +120,13 @@ struct ProfileView: View {
         .padding(16)
         .glassCard()
     }
-    
+
     // MARK: - Measurements
-    
+
     private var measurementsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             sectionHeader("Measurements", icon: "ruler.fill")
-            
+
             if let profile = workoutManager.userProfile {
                 HStack {
                     Text("Height")
@@ -157,7 +143,7 @@ struct ProfileView: View {
                     .labelsHidden()
                     .frame(width: 100)
                 }
-                
+
                 HStack {
                     Text("Weight")
                         .font(.subheadline)
@@ -173,7 +159,7 @@ struct ProfileView: View {
                     .labelsHidden()
                     .frame(width: 100)
                 }
-                
+
                 HStack {
                     Text("Waist")
                         .font(.subheadline)
@@ -194,13 +180,13 @@ struct ProfileView: View {
         .padding(16)
         .glassCard()
     }
-    
+
     // MARK: - Preferences
-    
+
     private var preferencesSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             sectionHeader("Preferences", icon: "gearshape.fill")
-            
+
             if let profile = workoutManager.userProfile {
                 HStack {
                     Text("Weight Unit")
@@ -218,9 +204,9 @@ struct ProfileView: View {
                     .pickerStyle(.segmented)
                     .frame(width: 140)
                 }
-                
+
                 Divider().background(AppColors.divider)
-                
+
                 HStack {
                     Text("Theme")
                         .font(.subheadline)
@@ -246,30 +232,29 @@ struct ProfileView: View {
         .padding(16)
         .glassCard()
     }
-    
+
     // MARK: - RMR Section
-    
-    /// Resting Metabolic Rate displayed in a prominent glass orb.
-    /// The large number is the visual centerpiece of the profile screen.
+
+    /// Resting Metabolic Rate displayed in a deep glass orb.
     private var rmrSection: some View {
         VStack(spacing: 14) {
             sectionHeader("Resting Metabolic Rate", icon: "flame.fill")
-            
+
             if let profile = workoutManager.userProfile {
-                // RMR value in a tinted glass rounded rect
+                // RMR value in a deep glass rounded rect
                 VStack(spacing: 4) {
                     Text("\(profile.restingMetabolicRate)")
                         .font(.system(size: 48, weight: .bold, design: .rounded).monospacedDigit())
                         .foregroundStyle(AppColors.accent)
-                    
+
                     Text("calories / day at rest")
                         .font(.subheadline)
                         .foregroundStyle(AppColors.subtleText)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 16)
-                .glassEffect(.regular, in: .rect(cornerRadius: 16))
-                
+                .deepGlass(.rect(cornerRadius: 16))
+
                 Text("Mifflin-St Jeor equation")
                     .font(.caption2)
                     .foregroundStyle(AppColors.subtleText.opacity(0.6))
@@ -279,25 +264,24 @@ struct ProfileView: View {
         .frame(maxWidth: .infinity)
         .glassCard()
     }
-    
+
     // MARK: - Reusable Components
-    
-    /// Section header with a glass circle icon and title.
-    /// The icon sits inside a small accent-tinted glass circle for depth.
+
+    /// Section header with a glass gem icon.
     private func sectionHeader(_ title: String, icon: String) -> some View {
         HStack(spacing: 8) {
             Image(systemName: icon)
                 .font(.system(size: 12))
                 .foregroundStyle(AppColors.accent)
                 .frame(width: 26, height: 26)
-                .glassEffect(.regular, in: .circle)
-            
+                .glassGem(.circle)
+
             Text(title)
                 .font(.headline)
                 .foregroundStyle(AppColors.primaryText)
         }
     }
-    
+
     private func profileField(_ label: String, binding: Binding<String>) -> some View {
         HStack {
             Text(label)
@@ -310,7 +294,7 @@ struct ProfileView: View {
                 .multilineTextAlignment(.trailing)
         }
     }
-    
+
     private func profileStepper(_ label: String, value: Binding<Int>, range: ClosedRange<Int>) -> some View {
         HStack {
             Text(label)

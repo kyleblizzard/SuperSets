@@ -6,21 +6,14 @@
 //   1. Rotary lift ring — 10 glass circles that spin like a revolver cylinder
 //   2. Add Lift button (fixed below ring)
 //   3. Unit caption label
-//   4. Compact timer bar (Workout Time + Rest Timer)
+//   4. Centered Rest Timer — standalone glass slab with big time display
 //   5. Combined sets view — Today (left) vs Previous (right) side-by-side
+//      with workout elapsed time at the bottom
 //   6. End Workout button
 //
-// ROTARY RING:
-// The lift circles are arranged in a clock layout and rotate as a group.
-// The circle at 12 o'clock is the "active" lift and glows. Drag to spin,
-// tap a circle to rotate it to the top. Snaps to discrete positions with
-// haptic detent clicks — like a revolver cylinder or rotary phone dial.
-//
-// BUTTON PHILOSOPHY:
-// Every tappable element uses Liquid Glass with .interactive(). This gives
-// each button real optical depth — lensing, specular highlights that track
-// device motion, press-down scaling with bounce-back, shimmer on touch,
-// and touch-point illumination.
+// v2.0 — 10x LIQUID GLASS: Glass fields, glass rows, glass slab containers,
+// centered rest timer as standalone element, workout time moved to bottom
+// of sets comparison area.
 
 import SwiftUI
 import SwiftData
@@ -86,7 +79,7 @@ struct WorkoutView: View {
                 }
 
                 if workoutManager.activeWorkout != nil {
-                    timerBar
+                    centeredRestTimer
                 }
 
                 if workoutManager.selectedLift != nil {
@@ -113,7 +106,7 @@ struct WorkoutView: View {
                         .foregroundStyle(AppColors.subtleText)
                 }
                 .padding(20)
-                .glassEffect(.regular, in: .rect(cornerRadius: 20))
+                .glassSlab(.rect(cornerRadius: 20))
                 .transition(.scale.combined(with: .opacity))
                 .allowsHitTesting(false)
             }
@@ -151,18 +144,15 @@ struct WorkoutView: View {
             }
         }
         .onAppear {
-            // If a lift is already selected, rotate ring to show it at top
             if let idx = workoutManager.selectedLiftIndex {
                 ringRotation = -Double(idx) * slotAngle
             }
         }
         .onChange(of: workoutManager.recentLifts.count) { oldCount, newCount in
-            // New lift added — it was inserted at index 0, rotate to show it at top
             if newCount > oldCount {
                 withAnimation(AppAnimation.spring) {
                     ringRotation = 0
                 }
-                // Select the newly added lift after animation settles
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
                     if let first = workoutManager.recentLifts.first {
                         workoutManager.selectLift(first)
@@ -174,46 +164,31 @@ struct WorkoutView: View {
 
     // MARK: - Rotary Ring Math
 
-    /// Position angle for a given slot index, incorporating current ring rotation.
-    /// Slot 0 starts at 12 o'clock (-90 deg) and proceeds clockwise.
     private func angleForSlot(_ index: Int) -> Angle {
         .degrees(-90 + Double(index) * slotAngle + ringRotation)
     }
 
-    /// Which slot index is currently closest to the 12 o'clock (top) position.
     private var topSlotIndex: Int {
-        // ringRotation moves the ring; slot 0 is at top when rotation == 0.
-        // Each +slotAngle of rotation moves the NEXT slot to the top,
-        // so we negate and wrap.
         let normalized = (-ringRotation).truncatingRemainder(dividingBy: 360)
         let positive = normalized < 0 ? normalized + 360 : normalized
         let raw = Int(round(positive / slotAngle)) % slotCount
         return raw
     }
 
-    /// Snap `ringRotation` to the nearest multiple of `slotAngle`.
     private func snapToNearestSlot() {
         let nearest = (ringRotation / slotAngle).rounded() * slotAngle
         withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
             ringRotation = nearest
         }
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-
-        // Select the lift at the top after animation settles
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
             selectLiftAtTop()
         }
     }
 
-    /// Animate the ring to bring a specific slot index to the 12 o'clock position.
-    /// Uses shortest-path rotation to avoid spinning the long way around.
     private func animateToSlot(_ index: Int) {
-        // Target rotation: slot `index` at top means rotation = -index * slotAngle
         let target = -Double(index) * slotAngle
-
-        // Compute shortest-path delta
         var delta = target - ringRotation
-        // Normalize delta to [-180, 180] for shortest path
         delta = delta.truncatingRemainder(dividingBy: 360)
         if delta > 180 { delta -= 360 }
         if delta < -180 { delta += 360 }
@@ -222,14 +197,11 @@ struct WorkoutView: View {
             ringRotation += delta
         }
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-
-        // Select lift after animation settles
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
             selectLiftAtTop()
         }
     }
 
-    /// Select the lift that's currently at the 12 o'clock position.
     private func selectLiftAtTop() {
         let idx = topSlotIndex
         if idx < workoutManager.recentLifts.count {
@@ -239,16 +211,13 @@ struct WorkoutView: View {
 
     // MARK: - Drag Gesture
 
-    /// Converts single-finger drag into angular rotation of the ring.
     private var ringDragGesture: some Gesture {
         DragGesture(minimumDistance: 8)
             .onChanged { value in
-                // Ring center is at the middle of the ZStack
                 let center = CGPoint(x: ringSize / 2, y: ringSize / 2)
                 let current = value.location
                 let start = value.startLocation
 
-                // Compute finger angles relative to center
                 let currentAngle = atan2(current.y - center.y, current.x - center.x)
                 let startAngle = atan2(start.y - center.y, start.x - center.x)
 
@@ -259,16 +228,13 @@ struct WorkoutView: View {
                     lastDetentSlot = topSlotIndex
                 }
 
-                // Angular delta in radians, then convert to degrees
                 var angleDelta = currentAngle - dragStartAngle
-                // Handle atan2 wrap-around at +/- pi
                 if angleDelta > .pi { angleDelta -= 2 * .pi }
                 if angleDelta < -.pi { angleDelta += 2 * .pi }
 
                 let angleDeltaDeg = angleDelta * 180 / .pi
                 ringRotation = dragStartRotation + angleDeltaDeg
 
-                // Haptic detent: fire when crossing into a new slot
                 let currentDetent = topSlotIndex
                 if currentDetent != lastDetentSlot {
                     UIImpactFeedbackGenerator(style: .light).impactOccurred()
@@ -283,19 +249,14 @@ struct WorkoutView: View {
 
     // MARK: - Radial Lift Ring
 
-    /// 10 glass circles arranged in a clock layout, rotatable as a group.
-    /// The circle at 12 o'clock glows as the active lift.
-    /// Center input panel stays fixed (does not rotate).
     private var radialLiftRing: some View {
         ZStack {
-            // Lift circles around the ring
             ForEach(0..<slotCount, id: \.self) { index in
                 let angle = angleForSlot(index)
                 let x = cos(angle.radians) * ringRadius
                 let y = sin(angle.radians) * ringRadius
                 let isAtTop = (topSlotIndex == index)
 
-                // Z-ordering: circles near the top render in front
                 let distFromTop = abs(angleDifference(angle.degrees + 90, 0))
                 let zOrder = Double(slotCount) - distFromTop / 36.0
 
@@ -311,11 +272,11 @@ struct WorkoutView: View {
                         animateToSlot(index)
                     }
                 } else {
-                    // Empty ghost placeholder — bare glass, no deepGlass
+                    // Empty ghost placeholder — glass gem
                     Circle()
                         .fill(.clear)
                         .frame(width: circleSize, height: circleSize)
-                        .glassEffect(.regular, in: .circle)
+                        .glassGem(.circle)
                         .opacity(0.25)
                         .offset(x: x, y: y)
                         .zIndex(zOrder)
@@ -350,7 +311,7 @@ struct WorkoutView: View {
         .buttonStyle(.plain)
     }
 
-    /// A lift circle on the ring. When `isTop` is true, it glows via deepGlass active state.
+    /// A lift circle on the ring.
     private func radialLiftCircle(for lift: LiftDefinition, size: CGFloat, isTop: Bool) -> some View {
         Text(twoWordName(lift.name))
             .font(.system(size: 9, weight: .semibold))
@@ -374,7 +335,7 @@ struct WorkoutView: View {
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
 
-                    // Side-by-side weight + reps fields
+                    // Side-by-side weight + reps glass fields
                     HStack(spacing: 4) {
                         TextField("Wt", text: $workoutManager.weightInput)
                             .keyboardType(.decimalPad)
@@ -383,14 +344,7 @@ struct WorkoutView: View {
                             .foregroundStyle(AppColors.primaryText)
                             .multilineTextAlignment(.center)
                             .frame(width: 58, height: 36)
-                            .background {
-                                RoundedRectangle(cornerRadius: 8)
-                                    .fill(AppColors.inputFill)
-                                    .overlay {
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .stroke(AppColors.inputBorder, lineWidth: 0.5)
-                                    }
-                            }
+                            .glassField(cornerRadius: 8)
 
                         TextField("Rps", text: $workoutManager.repsInput)
                             .keyboardType(.numberPad)
@@ -399,14 +353,7 @@ struct WorkoutView: View {
                             .foregroundStyle(AppColors.primaryText)
                             .multilineTextAlignment(.center)
                             .frame(width: 58, height: 36)
-                            .background {
-                                RoundedRectangle(cornerRadius: 8)
-                                    .fill(AppColors.inputFill)
-                                    .overlay {
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .stroke(AppColors.inputBorder, lineWidth: 0.5)
-                                    }
-                            }
+                            .glassField(cornerRadius: 8)
                     }
 
                     // Log set button
@@ -460,84 +407,56 @@ struct WorkoutView: View {
         }
     }
 
-    // MARK: - Compact Timer Bar
+    // MARK: - Centered Rest Timer
 
-    /// Single compact row: Workout Time on left, Rest Timer on right.
-    private var timerBar: some View {
-        HStack(spacing: 12) {
-            // Workout elapsed time
-            TimelineView(.periodic(from: .now, by: 1)) { context in
-                if let workout = workoutManager.activeWorkout {
-                    let elapsed = context.date.timeIntervalSince(workout.date)
-                    let hours = Int(elapsed) / 3600
-                    let minutes = (Int(elapsed) % 3600) / 60
-                    let seconds = Int(elapsed) % 60
+    /// Standalone centered rest timer in a glass slab.
+    /// Timer icon in a glass gem, big formatted time, play/stop button.
+    private var centeredRestTimer: some View {
+        VStack(spacing: 10) {
+            // Timer icon gem
+            Image(systemName: "timer")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(AppColors.accent)
+                .frame(width: 36, height: 36)
+                .glassGem(.circle)
 
-                    HStack(spacing: 6) {
-                        Circle()
-                            .fill(AppColors.positive)
-                            .frame(width: 6, height: 6)
+            Text("Rest Timer")
+                .font(.caption2.bold())
+                .foregroundStyle(AppColors.subtleText)
 
-                        Text("Workout Time")
-                            .font(.caption2.bold())
-                            .foregroundStyle(AppColors.subtleText)
+            // Big formatted time
+            Text(timerManager.formattedTime)
+                .font(.system(size: 36, weight: .bold, design: .rounded).monospacedDigit())
+                .foregroundStyle(AppColors.primaryText)
+                .contentTransition(.numericText())
+                .animation(.linear(duration: 0.1), value: timerManager.elapsedSeconds)
 
-                        Text(hours > 0
-                             ? String(format: "%d:%02d:%02d", hours, minutes, seconds)
-                             : String(format: "%02d:%02d", minutes, seconds))
-                            .font(.caption.monospacedDigit().bold())
-                            .foregroundStyle(AppColors.primaryText)
-                            .contentTransition(.numericText())
-                    }
+            // Play/Stop button
+            Button {
+                if timerManager.isRunning {
+                    UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
+                    timerManager.stop()
+                } else {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    timerManager.start()
                 }
+            } label: {
+                Image(systemName: timerManager.isRunning ? "stop.fill" : "play.fill")
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundStyle(timerManager.isRunning ? AppColors.danger : AppColors.positive)
+                    .frame(width: 54, height: 54)
+                    .deepGlass(.circle)
             }
-
-            Spacer()
-
-            // Rest timer with glossy glass play/stop
-            HStack(spacing: 8) {
-                Image(systemName: "timer")
-                    .font(.system(size: 12))
-                    .foregroundStyle(AppColors.subtleText)
-
-                Text("Rest Timer")
-                    .font(.caption2.bold())
-                    .foregroundStyle(AppColors.subtleText)
-
-                Text(timerManager.formattedTime)
-                    .font(.callout.monospacedDigit().bold())
-                    .foregroundStyle(AppColors.primaryText)
-                    .contentTransition(.numericText())
-                    .animation(.linear(duration: 0.1), value: timerManager.elapsedSeconds)
-
-                // Play/Stop as a glossy glass circle
-                Button {
-                    if timerManager.isRunning {
-                        UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
-                        timerManager.stop()
-                    } else {
-                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                        timerManager.start()
-                    }
-                } label: {
-                    Image(systemName: timerManager.isRunning ? "stop.fill" : "play.fill")
-                        .font(.system(size: 15, weight: .bold))
-                        .foregroundStyle(timerManager.isRunning ? AppColors.danger : AppColors.positive)
-                        .frame(width: 46, height: 46)
-                        .deepGlass(.circle)
-                }
-                .buttonStyle(.plain)
-            }
+            .buttonStyle(.plain)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
-        .glassEffect(.regular, in: .rect(cornerRadius: 14))
+        .padding(.vertical, 16)
+        .padding(.horizontal, 24)
+        .frame(maxWidth: .infinity)
+        .glassSlab(.rect(cornerRadius: 20))
     }
 
     // MARK: - Combined Sets View (Today + Comparison Side-by-Side)
 
-    /// Today on left, Previous on right, comparison arrows between them.
-    /// Switching lifts via circle buttons updates both columns instantly.
     private var combinedSetsView: some View {
         VStack(alignment: .leading, spacing: 12) {
             // Header with End Workout button
@@ -547,6 +466,7 @@ struct WorkoutView: View {
                         Circle()
                             .fill(AppColors.accent)
                             .frame(width: 8, height: 8)
+                            .glassGem(.circle)
 
                         Text("Sets")
                             .font(.subheadline.bold())
@@ -556,7 +476,7 @@ struct WorkoutView: View {
 
                 Spacer()
 
-                // End Workout — glossy glass button with danger tint
+                // End Workout button
                 Button {
                     showingEndConfirmation = true
                 } label: {
@@ -574,7 +494,7 @@ struct WorkoutView: View {
                 .buttonStyle(.plain)
             }
 
-            // Column headers
+            // Column headers in a glass row
             HStack(spacing: 0) {
                 Text("#")
                     .frame(width: 24, alignment: .leading)
@@ -598,6 +518,9 @@ struct WorkoutView: View {
             }
             .font(.caption.bold())
             .foregroundStyle(AppColors.subtleText)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .glassRow(cornerRadius: 10)
 
             // Set rows
             let todaySets = workoutManager.currentLiftSets
@@ -619,9 +542,41 @@ struct WorkoutView: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
             }
+
+            // Workout elapsed time at the bottom of sets area
+            if workoutManager.activeWorkout != nil {
+                Divider().background(AppColors.divider)
+
+                TimelineView(.periodic(from: .now, by: 1)) { context in
+                    if let workout = workoutManager.activeWorkout {
+                        let elapsed = context.date.timeIntervalSince(workout.date)
+                        let hours = Int(elapsed) / 3600
+                        let minutes = (Int(elapsed) % 3600) / 60
+                        let seconds = Int(elapsed) % 60
+
+                        HStack(spacing: 6) {
+                            Circle()
+                                .fill(AppColors.positive)
+                                .frame(width: 6, height: 6)
+
+                            Text("Workout Time")
+                                .font(.caption2.bold())
+                                .foregroundStyle(AppColors.subtleText)
+
+                            Text(hours > 0
+                                 ? String(format: "%d:%02d:%02d", hours, minutes, seconds)
+                                 : String(format: "%02d:%02d", minutes, seconds))
+                                .font(.caption.monospacedDigit().bold())
+                                .foregroundStyle(AppColors.primaryText)
+                                .contentTransition(.numericText())
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                }
+            }
         }
         .padding(16)
-        .glassEffect(.regular, in: .rect(cornerRadius: 20))
+        .glassSlab(.rect(cornerRadius: 20))
     }
 
     /// A single row: Today (left), arrow (center), Previous (right).
@@ -674,6 +629,8 @@ struct WorkoutView: View {
             .frame(maxWidth: .infinity)
         }
         .padding(.vertical, 4)
+        .padding(.horizontal, 4)
+        .glassRow(cornerRadius: 10)
     }
 
     /// Volume-based comparison: up green, down red, = gray, + extra set.
@@ -707,9 +664,6 @@ struct WorkoutView: View {
 
     // MARK: - Helpers
 
-    /// Extract up to 2 meaningful words from a lift name for compact display.
-    /// Strips filler/equipment words and joins with newline.
-    /// "Barbell Bench Press" -> "Bench\nPress", "Squat" -> "Squat"
     private func twoWordName(_ name: String) -> String {
         let filler: Set<String> = [
             "barbell", "dumbbell", "cable", "machine", "seated",
@@ -725,8 +679,6 @@ struct WorkoutView: View {
         return meaningful.prefix(2).map(String.init).joined(separator: "\n")
     }
 
-    /// Signed shortest angular difference between two angles in degrees.
-    /// Returns a value in [-180, 180].
     private func angleDifference(_ a: Double, _ b: Double) -> Double {
         var diff = (a - b).truncatingRemainder(dividingBy: 360)
         if diff > 180 { diff -= 360 }
