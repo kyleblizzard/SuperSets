@@ -39,6 +39,11 @@ struct WorkoutView: View {
     @State private var showPRBadge = false
     @State private var prType: PRType?
 
+    // MARK: Slot Machine State
+
+    @State private var wheelWeight: Double = 135.0
+    @State private var wheelReps: Int = 8
+
     // MARK: Rotary Ring State
 
     /// Accumulated rotation angle in degrees. Each slot = 36 degrees.
@@ -62,6 +67,25 @@ struct WorkoutView: View {
     /// Degrees per slot: 360 / 10 = 36.
     private let slotAngle: Double = 36.0
 
+    /// Whether to use scroll wheel (slot machine) input vs keyboard text fields.
+    private var useWheelInput: Bool {
+        workoutManager.userProfile?.useScrollWheelInput ?? true
+    }
+
+    /// Weight options for the wheel picker, based on preferred unit.
+    private var weightOptions: [Double] {
+        let unit = workoutManager.userProfile?.preferredUnit ?? .lbs
+        switch unit {
+        case .lbs: return stride(from: 0.0, through: 500.0, by: 2.5).map { $0 }
+        case .kg: return stride(from: 0.0, through: 250.0, by: 1.0).map { $0 }
+        }
+    }
+
+    /// Unit label string for display.
+    private var unitLabel: String {
+        workoutManager.userProfile?.preferredUnit.rawValue ?? "lbs"
+    }
+
     // MARK: Body
 
     var body: some View {
@@ -70,6 +94,11 @@ struct WorkoutView: View {
                 radialLiftRing
 
                 radialAddLiftButton
+
+                // Slot machine input panel (wheel mode)
+                if useWheelInput && workoutManager.selectedLift != nil {
+                    slotMachineInput
+                }
 
                 // Unit label
                 if let unit = workoutManager.userProfile?.preferredUnit {
@@ -147,6 +176,10 @@ struct WorkoutView: View {
             if let idx = workoutManager.selectedLiftIndex {
                 ringRotation = -Double(idx) * slotAngle
             }
+            syncWheelsFromInput()
+        }
+        .onChange(of: workoutManager.selectedLift?.name) { _, _ in
+            syncWheelsFromInput()
         }
         .onChange(of: workoutManager.recentLifts.count) { oldCount, newCount in
             if newCount > oldCount {
@@ -323,74 +356,71 @@ struct WorkoutView: View {
             .deepGlass(.circle, isActive: isTop)
     }
 
-    /// Center input panel — weight/reps fields + log button, or a "Select a lift" hint.
+    /// Center of the rotary ring.
+    /// Wheel mode: lift name + muscle icon (input is below ring in slot machine panel).
+    /// Keyboard mode: weight/reps text fields + log button.
     private var radialCenterInputPanel: some View {
         Group {
             if let lift = workoutManager.selectedLift {
-                VStack(spacing: 6) {
-                    // Lift name label
-                    Text(lift.name)
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(AppColors.subtleText)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
+                if useWheelInput {
+                    // Wheel mode — show lift info prominently, input is below ring
+                    VStack(spacing: 6) {
+                        Image(systemName: lift.muscleGroup.iconName)
+                            .font(.system(size: 24, weight: .semibold))
+                            .foregroundStyle(AppColors.gold)
 
-                    // Side-by-side weight + reps glass fields
-                    HStack(spacing: 4) {
-                        TextField("Wt", text: $workoutManager.weightInput)
-                            .keyboardType(.decimalPad)
-                            .focused($isInputFocused)
-                            .font(.system(size: 14, weight: .bold).monospacedDigit())
+                        Text(lift.name)
+                            .font(.system(size: 13, weight: .bold))
                             .foregroundStyle(AppColors.primaryText)
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.6)
                             .multilineTextAlignment(.center)
-                            .frame(width: 58, height: 36)
-                            .glassField(cornerRadius: 8)
 
-                        TextField("Rps", text: $workoutManager.repsInput)
-                            .keyboardType(.numberPad)
-                            .focused($isInputFocused)
-                            .font(.system(size: 14, weight: .bold).monospacedDigit())
-                            .foregroundStyle(AppColors.primaryText)
-                            .multilineTextAlignment(.center)
-                            .frame(width: 58, height: 36)
-                            .glassField(cornerRadius: 8)
+                        Text(lift.muscleGroup.displayName)
+                            .font(.system(size: 9))
+                            .foregroundStyle(AppColors.subtleText)
                     }
+                    .frame(width: 140, height: 140)
+                } else {
+                    // Keyboard mode — text fields + log button in center
+                    VStack(spacing: 6) {
+                        Text(lift.name)
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(AppColors.subtleText)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
 
-                    // Log set button
-                    Button {
-                        let success = workoutManager.logSet()
-                        if success {
-                            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                        HStack(spacing: 4) {
+                            TextField("Wt", text: $workoutManager.weightInput)
+                                .keyboardType(.decimalPad)
+                                .focused($isInputFocused)
+                                .font(.system(size: 14, weight: .bold).monospacedDigit())
+                                .foregroundStyle(AppColors.primaryText)
+                                .multilineTextAlignment(.center)
+                                .frame(width: 58, height: 36)
+                                .glassField(cornerRadius: 8)
 
-                            withAnimation(AppAnimation.quick) {
-                                showSetLogged = true
-                            }
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-                                withAnimation { showSetLogged = false }
-                            }
-
-                            if let pr = workoutManager.newPRAlert {
-                                prType = pr
-                                UINotificationFeedbackGenerator().notificationOccurred(.success)
-                                withAnimation(AppAnimation.spring) {
-                                    showPRBadge = true
-                                }
-                                workoutManager.newPRAlert = nil
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                                    withAnimation { showPRBadge = false }
-                                }
-                            }
+                            TextField("Rps", text: $workoutManager.repsInput)
+                                .keyboardType(.numberPad)
+                                .focused($isInputFocused)
+                                .font(.system(size: 14, weight: .bold).monospacedDigit())
+                                .foregroundStyle(AppColors.primaryText)
+                                .multilineTextAlignment(.center)
+                                .frame(width: 58, height: 36)
+                                .glassField(cornerRadius: 8)
                         }
-                    } label: {
-                        Image(systemName: showSetLogged ? "checkmark" : "plus")
-                            .font(.system(size: 20, weight: .bold))
-                            .foregroundStyle(showSetLogged ? AppColors.positive : AppColors.accent)
-                            .frame(width: 50, height: 50)
-                            .deepGlass(.circle)
+
+                        Button { logSetAction() } label: {
+                            Image(systemName: showSetLogged ? "checkmark" : "plus")
+                                .font(.system(size: 20, weight: .bold))
+                                .foregroundStyle(showSetLogged ? AppColors.positive : AppColors.accent)
+                                .frame(width: 50, height: 50)
+                                .deepGlass(.circle)
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
+                    .frame(width: 140, height: 140)
                 }
-                .frame(width: 140, height: 140)
             } else {
                 // No lift selected hint
                 VStack(spacing: 6) {
@@ -416,7 +446,7 @@ struct WorkoutView: View {
             // Timer icon gem
             Image(systemName: "timer")
                 .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(AppColors.accent)
+                .foregroundStyle(AppColors.gold)
                 .frame(width: 36, height: 36)
                 .glassGem(.circle)
 
@@ -464,7 +494,7 @@ struct WorkoutView: View {
                 if workoutManager.selectedLift != nil {
                     HStack(spacing: 6) {
                         Circle()
-                            .fill(AppColors.accent)
+                            .fill(AppColors.gold)
                             .frame(width: 8, height: 8)
                             .glassGem(.circle)
 
@@ -684,5 +714,137 @@ struct WorkoutView: View {
         if diff > 180 { diff -= 360 }
         if diff < -180 { diff += 360 }
         return diff
+    }
+
+    // MARK: - Slot Machine Input Panel
+
+    /// Gamified wheel picker input — two spinning wheels for weight and reps
+    /// in a glass slab, with a prominent LOG SET button.
+    private var slotMachineInput: some View {
+        VStack(spacing: 12) {
+            // Section labels
+            HStack {
+                Text("WEIGHT (\(unitLabel))")
+                    .font(.caption.bold())
+                    .foregroundStyle(AppColors.gold)
+                    .frame(maxWidth: .infinity)
+
+                Text("REPS")
+                    .font(.caption.bold())
+                    .foregroundStyle(AppColors.gold)
+                    .frame(maxWidth: .infinity)
+            }
+
+            // Wheel pickers side by side
+            GlassEffectContainer(spacing: 8.0) {
+                HStack(spacing: 8) {
+                    Picker("Weight", selection: $wheelWeight) {
+                        ForEach(weightOptions, id: \.self) { value in
+                            Text(formatWheelWeight(value))
+                                .font(.system(size: 22, weight: .bold, design: .rounded).monospacedDigit())
+                                .tag(value)
+                        }
+                    }
+                    .pickerStyle(.wheel)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 140)
+                    .clipped()
+                    .glassRow(cornerRadius: 14)
+
+                    Picker("Reps", selection: $wheelReps) {
+                        ForEach(1...99, id: \.self) { value in
+                            Text("\(value)")
+                                .font(.system(size: 22, weight: .bold, design: .rounded).monospacedDigit())
+                                .tag(value)
+                        }
+                    }
+                    .pickerStyle(.wheel)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 140)
+                    .clipped()
+                    .glassRow(cornerRadius: 14)
+                }
+            }
+
+            // LOG SET button — big, prominent
+            Button { logSetAction() } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: showSetLogged ? "checkmark.circle.fill" : "plus.circle.fill")
+                        .font(.system(size: 22, weight: .bold))
+                    Text(showSetLogged ? "LOGGED!" : "LOG SET")
+                        .font(.system(size: 18, weight: .bold, design: .rounded))
+                }
+                .foregroundStyle(showSetLogged ? AppColors.positive : AppColors.accent)
+                .frame(maxWidth: .infinity)
+                .frame(height: 54)
+                .deepGlass(.rect(cornerRadius: 14))
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(16)
+        .glassSlab(.rect(cornerRadius: 20))
+        .onChange(of: wheelWeight) { _, newValue in
+            workoutManager.weightInput = formatWheelWeight(newValue)
+        }
+        .onChange(of: wheelReps) { _, newValue in
+            workoutManager.repsInput = "\(newValue)"
+        }
+    }
+
+    // MARK: - Shared Log Action
+
+    /// Handles logging a set with haptic feedback, confirmation animation, and PR detection.
+    private func logSetAction() {
+        let success = workoutManager.logSet()
+        if success {
+            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+
+            withAnimation(AppAnimation.quick) {
+                showSetLogged = true
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                withAnimation { showSetLogged = false }
+            }
+
+            if let pr = workoutManager.newPRAlert {
+                prType = pr
+                UINotificationFeedbackGenerator().notificationOccurred(.success)
+                withAnimation(AppAnimation.spring) {
+                    showPRBadge = true
+                }
+                workoutManager.newPRAlert = nil
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                    withAnimation { showPRBadge = false }
+                }
+            }
+
+            // Re-sync wheels after logging (reps may reset)
+            if useWheelInput {
+                syncWheelsFromInput()
+            }
+        }
+    }
+
+    /// Syncs wheel picker values from workoutManager string inputs.
+    private func syncWheelsFromInput() {
+        if let weight = Double(workoutManager.weightInput), weight > 0 {
+            let options = weightOptions
+            if let closest = options.min(by: { abs($0 - weight) < abs($1 - weight) }) {
+                wheelWeight = closest
+            }
+        }
+        if let reps = Int(workoutManager.repsInput), reps >= 1, reps <= 99 {
+            wheelReps = reps
+        } else {
+            wheelReps = 8
+        }
+    }
+
+    /// Formats a weight value for display (no trailing .0).
+    private func formatWheelWeight(_ value: Double) -> String {
+        if value == value.rounded() {
+            return String(format: "%.0f", value)
+        }
+        return String(format: "%.1f", value)
     }
 }

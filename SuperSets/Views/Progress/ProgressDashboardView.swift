@@ -136,7 +136,7 @@ struct ProgressDashboardView: View {
             HStack(spacing: 4) {
                 Image(systemName: icon)
                     .font(.caption)
-                    .foregroundStyle(AppColors.accent)
+                    .foregroundStyle(AppColors.gold)
                 Text(value)
                     .font(.title2.bold().monospacedDigit())
                     .foregroundStyle(AppColors.primaryText)
@@ -366,7 +366,7 @@ struct ProgressDashboardView: View {
             // Muscle group header with glass gem dot
             HStack(spacing: 6) {
                 Circle()
-                    .fill(AppColors.accent)
+                    .fill(AppColors.gold)
                     .frame(width: 8, height: 8)
                     .glassGem(.circle)
                 Text(group.displayName)
@@ -420,7 +420,7 @@ struct ProgressDashboardView: View {
             VStack(spacing: 16) {
                 HStack(spacing: 8) {
                     Circle()
-                        .fill(AppColors.accent)
+                        .fill(AppColors.gold)
                         .frame(width: 10, height: 10)
                     Text(pr.liftName)
                         .font(.title3.bold())
@@ -645,12 +645,12 @@ struct ProgressDashboardView: View {
 
     // MARK: - Reusable Components
 
-    /// Section header with glass gem icon.
+    /// Section header with glass gem icon — gold for 60-30-10 secondary tone.
     private func sectionHeader(_ title: String, icon: String) -> some View {
         HStack(spacing: 8) {
             Image(systemName: icon)
                 .font(.system(size: 12))
-                .foregroundStyle(AppColors.accent)
+                .foregroundStyle(AppColors.gold)
                 .frame(width: 26, height: 26)
                 .glassGem(.circle)
 

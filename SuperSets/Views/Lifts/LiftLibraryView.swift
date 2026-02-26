@@ -148,7 +148,7 @@ struct LiftLibraryView: View {
                 // 84pt deep glass orb
                 Image(systemName: group.iconName)
                     .font(.system(size: 28, weight: .semibold))
-                    .foregroundStyle(AppColors.accent)
+                    .foregroundStyle(AppColors.gold)
                     .frame(width: 84, height: 84)
                     .deepGlass(.circle)
 
@@ -202,7 +202,7 @@ struct LiftLibraryView: View {
                 // Context orb — glass gem
                 Image(systemName: group.iconName)
                     .font(.system(size: 28, weight: .semibold))
-                    .foregroundStyle(AppColors.accent)
+                    .foregroundStyle(AppColors.gold)
                     .frame(width: 64, height: 64)
                     .glassGem(.circle)
                     .padding(.top, 4)
@@ -289,7 +289,7 @@ struct LiftLibraryView: View {
                 // Glass gem icon
                 Image(systemName: lift.muscleGroup.iconName)
                     .font(.system(size: 12))
-                    .foregroundStyle(AppColors.accent)
+                    .foregroundStyle(AppColors.gold)
                     .frame(width: 24, height: 24)
                     .glassGem(.circle)
 
@@ -300,7 +300,7 @@ struct LiftLibraryView: View {
                 if lift.isCustom {
                     Text("Custom")
                         .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(AppColors.accent)
+                        .foregroundStyle(AppColors.gold)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
                         .glassGem(.capsule)

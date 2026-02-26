@@ -177,7 +177,7 @@ struct CalendarView: View {
 
             // Workout indicator dot — 5pt
             Circle()
-                .fill(hasWorkout ? AppColors.accent : Color.clear)
+                .fill(hasWorkout ? AppColors.gold : Color.clear)
                 .frame(width: 5, height: 5)
         }
         .frame(width: 52, height: 52)
@@ -196,7 +196,7 @@ struct CalendarView: View {
             HStack(spacing: 8) {
                 Image(systemName: "clock.arrow.circlepath")
                     .font(.system(size: 12))
-                    .foregroundStyle(AppColors.accent)
+                    .foregroundStyle(AppColors.gold)
                     .frame(width: 26, height: 26)
                     .glassGem(.circle)
 

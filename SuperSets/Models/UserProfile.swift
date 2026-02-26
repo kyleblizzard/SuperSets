@@ -112,6 +112,10 @@ final class UserProfile {
     /// keeps the database schema simple (just strings) while giving us
     /// compile-time safety in Swift code.
     var activityLevelRaw: String
+
+    /// Whether the user prefers scroll wheel (slot machine) input for weight/reps
+    /// or keyboard text fields. Defaults to true (wheel).
+    var useScrollWheelInput: Bool = true
     
     // MARK: Profile Photo
     
