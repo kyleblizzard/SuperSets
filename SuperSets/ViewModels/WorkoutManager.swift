@@ -77,62 +77,88 @@ struct WeeklyVolume: Identifiable {
     }
 }
 
+// MARK: - SetDisplayRow
+
+/// Represents either a regular set or a grouped super set block in the sets table.
+enum SetDisplayRow: Identifiable {
+    case regular(WorkoutSet)
+    case superSet(groupId: String, setNumber: Int, sets: [WorkoutSet])
+
+    var id: String {
+        switch self {
+        case .regular(let set):
+            return "regular-\(set.timestamp.timeIntervalSince1970)"
+        case .superSet(let groupId, _, _):
+            return "ss-\(groupId)"
+        }
+    }
+}
+
 // MARK: - WorkoutManager
 
 @Observable
 final class WorkoutManager {
-    
+
     // MARK: - Dependencies
-    
+
     /// SwiftData model context for all database operations.
-    ///
-    /// LEARNING NOTE:
-    /// ModelContext is SwiftData's database connection. All inserts, deletes,
-    /// and queries go through this. Changes auto-persist (SwiftData auto-saves),
-    /// but we call save() explicitly after important mutations for certainty.
     var modelContext: ModelContext?
-    
+
     // MARK: - Active Workout State
-    
+
     /// Currently active workout, or nil if none in progress.
     var activeWorkout: Workout?
-    
+
     /// The lift currently selected for input.
     var selectedLift: LiftDefinition?
-    
+
     /// Most recently used lifts for circle buttons (max 10, newest first).
     var recentLifts: [LiftDefinition] = []
-    
+
     // MARK: - Input State
-    
+
     /// Weight value in the input field. Persists between sets.
     var weightInput: String = ""
-    
+
     /// Reps value in the input field. Clears after each logged set.
     var repsInput: String = ""
-    
+
     // MARK: - Comparison Data
-    
+
     /// Sets from the PREVIOUS time the selected lift was performed.
     var previousSets: [WorkoutSet] = []
-    
+
     /// Date when the selected lift was previously performed.
     var previousWorkoutDate: Date?
-    
+
     // MARK: - User Profile
-    
+
     /// The user's profile (singleton in the database).
     var userProfile: UserProfile?
-    
+
     // MARK: - Database Seeding
-    
+
     var hasSeededDatabase: Bool = false
-    
+
     // MARK: - Progress Tab State
-    
+
     /// When a PR is broken during a workout, this briefly shows which PR type.
     /// WorkoutView displays a 🏆 badge when this is non-nil.
     var newPRAlert: PRType? = nil
+
+    // MARK: - Super Set State
+
+    /// Whether the user is currently building a super set.
+    var isSuperSetMode: Bool = false
+
+    /// Ordered list of lifts in the current super set (max 5).
+    var superSetLifts: [LiftDefinition] = []
+
+    /// Per-lift weight input keyed by lift name.
+    var superSetWeights: [String: String] = [:]
+
+    /// Per-lift reps input keyed by lift name.
+    var superSetReps: [String: String] = [:]
     
     // MARK: - Initialization
     
@@ -175,11 +201,13 @@ final class WorkoutManager {
     @discardableResult
     func endWorkout(notes: String? = nil) -> Workout? {
         guard let workout = activeWorkout else { return nil }
-        
+
         workout.isActive = false
         workout.endDate = Date()
         workout.notes = notes?.isEmpty == true ? nil : notes
-        
+
+        exitSuperSetMode()
+
         let completed = workout
         activeWorkout = nil
         selectedLift = nil
@@ -187,7 +215,7 @@ final class WorkoutManager {
         repsInput = ""
         previousSets = []
         previousWorkoutDate = nil
-        
+
         save()
         return completed
     }
@@ -272,10 +300,16 @@ final class WorkoutManager {
     // MARK: - Lift Selection
     
     /// Select a lift for the current workout.
+    /// In super set mode, toggles the lift in the SS group instead.
     /// Auto-starts a workout if none is active.
     func selectLift(_ lift: LiftDefinition) {
         if activeWorkout == nil {
             startWorkout()
+        }
+
+        if isSuperSetMode {
+            toggleSuperSetLift(lift)
+            return
         }
 
         selectedLift = lift
@@ -365,7 +399,7 @@ final class WorkoutManager {
     // MARK: - Recent Lifts Management
     
     /// Insert a new lift at the front of the ring (max 10). Does NOT reorder existing lifts.
-    private func addToRecentLifts(_ lift: LiftDefinition) {
+    func addToRecentLifts(_ lift: LiftDefinition) {
         recentLifts.insert(lift, at: 0)
         if recentLifts.count > 10 {
             recentLifts = Array(recentLifts.prefix(10))
@@ -878,8 +912,186 @@ final class WorkoutManager {
         }
     }
     
+    // MARK: - Super Set Methods
+
+    /// Enter super set mode, seeding the group with the currently selected lift.
+    func enterSuperSetMode() {
+        isSuperSetMode = true
+        superSetLifts = []
+        superSetWeights = [:]
+        superSetReps = [:]
+        if let lift = selectedLift {
+            superSetLifts.append(lift)
+        }
+    }
+
+    /// Exit super set mode and discard any uncommitted input.
+    func exitSuperSetMode() {
+        isSuperSetMode = false
+        superSetLifts = []
+        superSetWeights = [:]
+        superSetReps = [:]
+    }
+
+    /// Add or remove a lift from the current super set group.
+    /// - Returns: true if the lift is now in the group, false if removed.
+    @discardableResult
+    func toggleSuperSetLift(_ lift: LiftDefinition) -> Bool {
+        if let idx = superSetLifts.firstIndex(where: { $0.name == lift.name }) {
+            // Don't remove the last lift
+            if superSetLifts.count > 1 {
+                superSetLifts.remove(at: idx)
+                superSetWeights.removeValue(forKey: lift.name)
+                superSetReps.removeValue(forKey: lift.name)
+            }
+            return false
+        } else {
+            guard superSetLifts.count < 5 else { return false }
+            superSetLifts.append(lift)
+            // Add to ring if not already present
+            if !recentLifts.contains(where: { $0.name == lift.name }) {
+                addToRecentLifts(lift)
+            }
+            return true
+        }
+    }
+
+    /// Check if a lift is currently in the super set group.
+    func isInSuperSet(_ lift: LiftDefinition) -> Bool {
+        superSetLifts.contains(where: { $0.name == lift.name })
+    }
+
+    /// Index of a lift within the super set group (1-based for display).
+    func superSetIndex(of lift: LiftDefinition) -> Int? {
+        guard let idx = superSetLifts.firstIndex(where: { $0.name == lift.name }) else { return nil }
+        return idx + 1
+    }
+
+    /// Log all lifts in the super set as one grouped action.
+    /// Each lift gets its own WorkoutSet with a shared groupId.
+    /// If only 1 lift remains, delegates to regular logSet().
+    /// - Returns: true if logged successfully.
+    @discardableResult
+    func logSuperSet() -> Bool {
+        guard let context = modelContext,
+              let workout = activeWorkout,
+              !superSetLifts.isEmpty
+        else { return false }
+
+        // If only 1 lift, delegate to regular log
+        if superSetLifts.count == 1, let lift = superSetLifts.first {
+            let w = superSetWeights[lift.name] ?? weightInput
+            let r = superSetReps[lift.name] ?? repsInput
+            weightInput = w
+            repsInput = r
+            selectedLift = lift
+            return logSet()
+        }
+
+        // Validate all inputs
+        var parsedSets: [(lift: LiftDefinition, weight: Double, reps: Int)] = []
+        for lift in superSetLifts {
+            guard let weightStr = superSetWeights[lift.name],
+                  let weight = Double(weightStr),
+                  let repsStr = superSetReps[lift.name],
+                  let reps = Int(repsStr),
+                  weight > 0,
+                  reps > 0
+            else { return false }
+            parsedSets.append((lift: lift, weight: weight, reps: reps))
+        }
+
+        let groupId = UUID().uuidString
+
+        for (order, entry) in parsedSets.enumerated() {
+            let existingSets = workout.sets.filter {
+                $0.liftDefinition?.name == entry.lift.name
+            }
+            let nextSetNumber = existingSets.count + 1
+
+            let newSet = WorkoutSet(
+                weight: entry.weight,
+                reps: entry.reps,
+                setNumber: nextSetNumber,
+                workout: workout,
+                liftDefinition: entry.lift,
+                superSetGroupId: groupId,
+                superSetOrder: order
+            )
+            context.insert(newSet)
+            entry.lift.lastUsedDate = Date()
+
+            // Check PR per lift
+            checkForNewPR(weight: entry.weight, reps: entry.reps, lift: entry.lift)
+        }
+
+        // Clear reps (keep weights for convenience)
+        for lift in superSetLifts {
+            superSetReps[lift.name] = ""
+        }
+
+        save()
+        return true
+    }
+
+    /// Delete all sets sharing a super set groupId and renumber per-lift.
+    func deleteSuperSetGroup(_ groupId: String) {
+        guard let context = modelContext,
+              let workout = activeWorkout else { return }
+
+        let groupSets = workout.sets.filter { $0.superSetGroupId == groupId }
+        let affectedLiftNames = Set(groupSets.compactMap { $0.liftDefinition?.name })
+
+        for set in groupSets {
+            context.delete(set)
+        }
+
+        // Renumber remaining sets for each affected lift
+        for liftName in affectedLiftNames {
+            let remaining = workout.sets
+                .filter { $0.liftDefinition?.name == liftName && $0.superSetGroupId != groupId }
+                .sorted { $0.timestamp < $1.timestamp }
+            for (index, set) in remaining.enumerated() {
+                set.setNumber = index + 1
+            }
+        }
+
+        save()
+    }
+
+    /// Builds display rows for the sets table, interleaving regular and grouped super set rows.
+    var currentLiftDisplayRows: [SetDisplayRow] {
+        guard let workout = activeWorkout,
+              let lift = selectedLift else { return [] }
+
+        let liftSets = workout.sets
+            .filter { $0.liftDefinition?.name == lift.name }
+            .sorted { $0.setNumber < $1.setNumber }
+
+        var rows: [SetDisplayRow] = []
+        var processedGroupIds = Set<String>()
+
+        for set in liftSets {
+            if let groupId = set.superSetGroupId {
+                guard !processedGroupIds.contains(groupId) else { continue }
+                processedGroupIds.insert(groupId)
+
+                // Gather all sets in this SS group across all lifts
+                let groupSets = workout.sets
+                    .filter { $0.superSetGroupId == groupId }
+                    .sorted { ($0.superSetOrder ?? 0) < ($1.superSetOrder ?? 0) }
+
+                rows.append(.superSet(groupId: groupId, setNumber: set.setNumber, sets: groupSets))
+            } else {
+                rows.append(.regular(set))
+            }
+        }
+
+        return rows
+    }
+
     // MARK: - Persistence
-    
+
     /// Save pending changes to the database.
     private func save() {
         guard let context = modelContext else { return }
