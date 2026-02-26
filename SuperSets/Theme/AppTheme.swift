@@ -28,15 +28,15 @@ enum AppColors {
     // MARK: Background Colors
     
     static var backgroundTop: Color {
-        Color(light: 0xF0F2F5, dark: 0x0A1929)
+        Color(light: 0xF5F7FA, dark: 0x060E1A)
     }
-    
+
     static var backgroundMid: Color {
-        Color(light: 0xE8EAED, dark: 0x132F4C)
+        Color(light: 0xE0E5EC, dark: 0x0F2744)
     }
-    
+
     static var backgroundBottom: Color {
-        Color(light: 0xD8DADF, dark: 0x1A3A52)
+        Color(light: 0xC8D0DC, dark: 0x1B3B5A)
     }
     
     // MARK: Accent Colors
@@ -107,17 +107,56 @@ enum AppColors {
 /// subtly shows through glass elements — that's intentional.
 struct AppBackground: View {
     @Environment(\.colorScheme) private var colorScheme
-    
+
     var body: some View {
-        LinearGradient(
-            colors: [
-                AppColors.backgroundTop,
-                AppColors.backgroundMid,
-                AppColors.backgroundBottom
-            ],
-            startPoint: colorScheme == .light ? .top : .topLeading,
-            endPoint: colorScheme == .light ? .bottom : .bottomTrailing
-        )
+        ZStack {
+            // 1. Base linear gradient — higher contrast between stops
+            LinearGradient(
+                colors: [
+                    AppColors.backgroundTop,
+                    AppColors.backgroundMid,
+                    AppColors.backgroundBottom
+                ],
+                startPoint: colorScheme == .light ? .top : .topLeading,
+                endPoint: colorScheme == .light ? .bottom : .bottomTrailing
+            )
+
+            // 2. Upper-right radial pool — teal/sky
+            RadialGradient(
+                colors: [
+                    Color(light: 0xB3D4F0, dark: 0x1A5276)
+                        .opacity(colorScheme == .dark ? 0.30 : 0.35),
+                    Color.clear
+                ],
+                center: UnitPoint(x: 0.8, y: 0.15),
+                startRadius: 0,
+                endRadius: 280
+            )
+
+            // 3. Lower-left radial pool — purple/lavender
+            RadialGradient(
+                colors: [
+                    Color(light: 0xE0C3F0, dark: 0x2C1654)
+                        .opacity(0.25),
+                    Color.clear
+                ],
+                center: UnitPoint(x: 0.15, y: 0.75),
+                startRadius: 0,
+                endRadius: 250
+            )
+
+            // 4. Center-bottom radial pool — emerald/sage
+            RadialGradient(
+                colors: [
+                    Color(light: 0xC5E8D5, dark: 0x0B3D2E)
+                        .opacity(0.20),
+                    Color.clear
+                ],
+                center: UnitPoint(x: 0.5, y: 0.55),
+                startRadius: 0,
+                endRadius: 220
+            )
+        }
         .ignoresSafeArea()
     }
 }
@@ -188,4 +227,119 @@ enum AppAnimation {
     static let spring = Animation.spring(response: 0.35, dampingFraction: 0.7)
     static let quick = Animation.spring(response: 0.25, dampingFraction: 0.8)
     static let smooth = Animation.spring(response: 0.5, dampingFraction: 0.8)
+}
+
+// MARK: - Deep Glass Effect
+
+/// Shape types for the deep glass modifier.
+enum DeepGlassShape {
+    case circle
+    case capsule
+    case rect(cornerRadius: CGFloat)
+}
+
+/// A ViewModifier that wraps any view with the full glass depth stack:
+/// base Liquid Glass, 3-layer shadows, rim highlight, inner convex highlight,
+/// and an active glow state.
+struct DeepGlassModifier: ViewModifier {
+    let shape: DeepGlassShape
+    var isActive: Bool = false
+    @Environment(\.colorScheme) private var colorScheme
+
+    // Shadow opacity adapts to color scheme (slightly stronger in dark)
+    private var shadowBase: Double { colorScheme == .dark ? 0.35 : 0.25 }
+
+    func body(content: Content) -> some View {
+        content
+            // 1. Base Liquid Glass
+            .modifier(GlassShapeModifier(shape: shape))
+            // 2. Contact shadow — tight, close
+            .shadow(color: .black.opacity(shadowBase), radius: 2, y: 1)
+            // 3. Lift shadow — medium spread
+            .shadow(color: .black.opacity(shadowBase * 0.6), radius: 8, y: 4)
+            // 4. Ambient shadow — wide soft halo
+            .shadow(color: .black.opacity(shadowBase * 0.3), radius: 16, y: 6)
+            // 5. Rim highlight + 6. Inner convex highlight
+            .overlay { rimHighlight }
+            .overlay { innerConvexHighlight }
+            // 7. Active state — glow + scale
+            .shadow(
+                color: isActive ? AppColors.accent.opacity(0.5) : .clear,
+                radius: isActive ? 16 : 0
+            )
+            .scaleEffect(isActive ? 1.06 : 1.0)
+            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isActive)
+    }
+
+    /// 0.75pt AngularGradient stroke simulating directional light on the glass edge.
+    @ViewBuilder
+    private var rimHighlight: some View {
+        let gradient = AngularGradient(
+            stops: [
+                .init(color: .white.opacity(0.45), location: 0.0),
+                .init(color: .white.opacity(0.25), location: 0.12),
+                .init(color: .clear, location: 0.25),
+                .init(color: .clear, location: 0.5),
+                .init(color: .white.opacity(0.15), location: 0.62),
+                .init(color: .white.opacity(0.35), location: 0.75),
+                .init(color: .clear, location: 0.88),
+                .init(color: .white.opacity(0.45), location: 1.0)
+            ],
+            center: .center
+        )
+        switch shape {
+        case .circle:
+            Circle().stroke(gradient, lineWidth: 0.75)
+        case .capsule:
+            Capsule().stroke(gradient, lineWidth: 0.75)
+        case .rect(let cr):
+            RoundedRectangle(cornerRadius: cr).stroke(gradient, lineWidth: 0.75)
+        }
+    }
+
+    /// LinearGradient overlay faking a curved glass surface catching overhead light.
+    @ViewBuilder
+    private var innerConvexHighlight: some View {
+        let gradient = LinearGradient(
+            colors: [
+                Color.white.opacity(0.12),
+                Color.white.opacity(0.04),
+                Color.black.opacity(0.03)
+            ],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+        switch shape {
+        case .circle:
+            Circle().fill(gradient).allowsHitTesting(false)
+        case .capsule:
+            Capsule().fill(gradient).allowsHitTesting(false)
+        case .rect(let cr):
+            RoundedRectangle(cornerRadius: cr).fill(gradient).allowsHitTesting(false)
+        }
+    }
+}
+
+/// Helper modifier that applies .glassEffect with the correct shape.
+private struct GlassShapeModifier: ViewModifier {
+    let shape: DeepGlassShape
+
+    func body(content: Content) -> some View {
+        switch shape {
+        case .circle:
+            content.glassEffect(.regular.interactive(), in: .circle)
+        case .capsule:
+            content.glassEffect(.regular.interactive(), in: .capsule)
+        case .rect(let cr):
+            content.glassEffect(.regular.interactive(), in: .rect(cornerRadius: cr))
+        }
+    }
+}
+
+extension View {
+    /// Apply the full deep glass treatment: Liquid Glass + 3-layer shadows +
+    /// rim highlight + inner convex highlight + optional active glow.
+    func deepGlass(_ shape: DeepGlassShape, isActive: Bool = false) -> some View {
+        self.modifier(DeepGlassModifier(shape: shape, isActive: isActive))
+    }
 }

@@ -164,12 +164,12 @@ struct LiftLibraryView: View {
             }
         } label: {
             VStack(spacing: 6) {
-                // Clear glass orb — icon shows through
+                // Deep glass orb — icon shows through
                 Image(systemName: group.iconName)
                     .font(.system(size: 24, weight: .semibold))
                     .foregroundStyle(AppColors.accent)
                     .frame(width: 72, height: 72)
-                    .glassEffect(.regular.interactive(), in: .circle)
+                    .deepGlass(.circle)
                 
                 Text(group.displayName)
                     .font(.caption2.bold())
@@ -276,12 +276,12 @@ struct LiftLibraryView: View {
                     }
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
-                    .glassEffect(.regular.interactive(), in: .capsule)
+                    .deepGlass(.capsule)
                 }
                 .buttonStyle(.plain)
                 .padding(.horizontal, 16)
-                
-                // Exercise buttons — clear glass capsules
+
+                // Exercise buttons — deep glass capsules
                 GlassEffectContainer(spacing: 10.0) {
                     ForEach(groupLifts, id: \.name) { lift in
                         exerciseGlassButton(lift: lift)
@@ -342,7 +342,7 @@ struct LiftLibraryView: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
-            .glassEffect(.regular.interactive(), in: .capsule)
+            .deepGlass(.capsule)
         }
         .buttonStyle(.plain)
     }

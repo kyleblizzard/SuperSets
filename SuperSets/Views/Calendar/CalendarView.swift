@@ -96,22 +96,22 @@ struct CalendarView: View {
                     Image(systemName: "chevron.left")
                         .font(.system(size: 14, weight: .bold))
                         .foregroundStyle(AppColors.accent)
-                        .frame(width: 38, height: 38)
-                        .glassEffect(.regular.interactive(), in: .circle)
+                        .frame(width: 44, height: 44)
+                        .deepGlass(.circle)
                 }
                 .buttonStyle(.plain)
-                
+
                 Spacer()
-                
+
                 Text(monthYearString)
                     .font(.title3.bold())
                     .foregroundStyle(AppColors.primaryText)
                     .padding(.horizontal, 20)
                     .padding(.vertical, 8)
                     .glassEffect(.regular, in: .capsule)
-                
+
                 Spacer()
-                
+
                 Button {
                     withAnimation(AppAnimation.spring) {
                         displayedMonth = calendar.date(byAdding: .month, value: 1, to: displayedMonth) ?? displayedMonth
@@ -120,8 +120,8 @@ struct CalendarView: View {
                     Image(systemName: "chevron.right")
                         .font(.system(size: 14, weight: .bold))
                         .foregroundStyle(AppColors.accent)
-                        .frame(width: 38, height: 38)
-                        .glassEffect(.regular.interactive(), in: .circle)
+                        .frame(width: 44, height: 44)
+                        .deepGlass(.circle)
                 }
                 .buttonStyle(.plain)
             }
@@ -181,27 +181,35 @@ struct CalendarView: View {
                 showingDetail = true
             }
         } label: {
-            VStack(spacing: 1) {
-                Text("\(day)")
-                    .font(.system(size: 14, weight: isToday || hasWorkout ? .bold : .regular).monospacedDigit())
-                    .foregroundStyle(
-                        hasWorkout || isToday ? AppColors.accent : AppColors.primaryText
-                    )
-                
-                // Workout indicator dot
-                Circle()
-                    .fill(hasWorkout ? AppColors.accent : Color.clear)
-                    .frame(width: 4, height: 4)
-            }
-            .frame(width: 44, height: 44)
-            .glassEffect(
-                hasWorkout ? .regular.interactive() : .regular,
-                in: .circle
-            )
+            dayCellContent(day: day, isToday: isToday, hasWorkout: hasWorkout)
         }
         .buttonStyle(.plain)
     }
     
+    /// Day cell content with conditional deep glass for workout days.
+    @ViewBuilder
+    private func dayCellContent(day: Int, isToday: Bool, hasWorkout: Bool) -> some View {
+        let content = VStack(spacing: 1) {
+            Text("\(day)")
+                .font(.system(size: 14, weight: isToday || hasWorkout ? .bold : .regular).monospacedDigit())
+                .foregroundStyle(
+                    hasWorkout || isToday ? AppColors.accent : AppColors.primaryText
+                )
+
+            // Workout indicator dot
+            Circle()
+                .fill(hasWorkout ? AppColors.accent : Color.clear)
+                .frame(width: 4, height: 4)
+        }
+        .frame(width: 44, height: 44)
+
+        if hasWorkout {
+            content.deepGlass(.circle)
+        } else {
+            content.glassEffect(.regular, in: .circle)
+        }
+    }
+
     // MARK: - Recent Workouts List
     
     /// Recent workouts as clear glass capsule buttons.
@@ -267,7 +275,7 @@ struct CalendarView: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
-            .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 16))
+            .deepGlass(.rect(cornerRadius: 16))
         }
         .buttonStyle(.plain)
     }
