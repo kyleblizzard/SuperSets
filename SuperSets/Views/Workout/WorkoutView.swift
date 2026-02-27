@@ -35,7 +35,6 @@ struct WorkoutView: View {
 
     @FocusState var isInputFocused: Bool
     @State var showingLiftLibrary = false
-    @State var showingQuickPicker = false
     @State var showingSplits = false
     @State var showingEndConfirmation = false
     @State var showingSummary = false
@@ -59,14 +58,16 @@ struct WorkoutView: View {
     /// Per-lift wheel reps values keyed by lift name.
     @State var superSetWheelReps: [String: Int] = [:]
 
-    // MARK: Warm-Up & Intensity State
+    // MARK: Inline Set Editing State
 
-    /// When true, the next logged set will be marked as a warm-up.
-    @State var isWarmUpToggled: Bool = false
-    /// When true, the next logged set will be marked as taken to failure.
-    @State var toFailureToggled: Bool = false
-    /// Selected intensity technique for the next set (nil = none).
-    @State var selectedTechnique: IntensityTechnique?
+    /// ID of the set currently being edited inline (nil = no editing).
+    @State var editingSetId: String? = nil
+    /// Editing fields for inline set editing.
+    @State var editWeight = ""
+    @State var editReps = ""
+    @State var editIsWarmUp = false
+    @State var editToFailure = false
+    @State var editTechnique: IntensityTechnique? = nil
 
     // MARK: Timer State
 
@@ -97,10 +98,10 @@ struct WorkoutView: View {
     var ringRadius: CGFloat { ringSize * 0.42 }
     var circleSize: CGFloat { ringSize * 0.19 }
     var centerSize: CGFloat { ringSize * 0.5 }
-    /// 10 lift slots on the ring (Add Lift is separate, below the ring).
-    let slotCount = 10
-    /// Degrees per slot: 360 / 10 = 36.
-    let slotAngle: Double = 36.0
+    /// Number of lift slots on the ring, derived from WorkoutManager constant.
+    var slotCount: Int { WorkoutManager.ringSlotCount }
+    /// Degrees per slot: 360 / slotCount.
+    var slotAngle: Double { 360.0 / Double(slotCount) }
 
     /// Whether to use scroll wheel (slot machine) input vs keyboard text fields.
     var useWheelInput: Bool {
@@ -172,11 +173,6 @@ struct WorkoutView: View {
         .sheet(isPresented: $showingLiftLibrary) {
             LiftLibraryView(workoutManager: workoutManager)
                 .presentationDetents([.large])
-                .presentationDragIndicator(.visible)
-        }
-        .sheet(isPresented: $showingQuickPicker) {
-            QuickLiftPicker(workoutManager: workoutManager)
-                .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
         }
         .sheet(isPresented: $showingSplits) {

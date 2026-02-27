@@ -181,7 +181,7 @@ extension WorkoutView {
                 showSetLogged = true
             }
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-                withAnimation { showSetLogged = false }
+                AppAnimation.perform(AppAnimation.quick) { showSetLogged = false }
             }
 
             // Reset to first lift for next round
@@ -200,7 +200,7 @@ extension WorkoutView {
                 }
                 workoutManager.newPRAlert = nil
                 DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                    withAnimation { showPRBadge = false }
+                    AppAnimation.perform(AppAnimation.quick) { showPRBadge = false }
                 }
             }
         }

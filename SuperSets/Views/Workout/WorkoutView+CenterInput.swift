@@ -87,9 +87,6 @@ extension WorkoutView {
                 }
             }
 
-            // Tag row: W, F, technique
-            intensityTagRow
-
             // LOG + timer row
             HStack(spacing: 6) {
                 timerShortcutButton
@@ -156,9 +153,6 @@ extension WorkoutView {
                 }
             }
 
-            // Tag row: W, F, technique
-            intensityTagRow
-
             HStack(spacing: 6) {
                 timerShortcutButton
 
@@ -177,59 +171,6 @@ extension WorkoutView {
         .frame(width: centerSize, height: centerSize)
     }
 
-    // MARK: Intensity Tag Row
-
-    /// Compact row of tag buttons: Warm-up, Failure, Technique picker.
-    var intensityTagRow: some View {
-        HStack(spacing: 4) {
-            warmUpToggleButton
-
-            // Failure toggle
-            Button {
-                toFailureToggled.toggle()
-                UIImpactFeedbackGenerator(style: .light).impactOccurred()
-            } label: {
-                Text("F")
-                    .font(.system(size: 11, weight: .bold, design: .rounded))
-                    .foregroundStyle(toFailureToggled ? AppColors.danger : AppColors.subtleText)
-                    .frame(width: 28, height: 28)
-                    .deepGlass(.circle, isActive: toFailureToggled)
-            }
-            .buttonStyle(.plain)
-
-            // Technique picker menu
-            Menu {
-                Button("None") { selectedTechnique = nil }
-                ForEach(IntensityTechnique.allCases) { tech in
-                    Button(tech.rawValue) { selectedTechnique = tech }
-                }
-            } label: {
-                Text(selectedTechnique?.shortLabel ?? "IT")
-                    .font(.system(size: 9, weight: .bold, design: .rounded))
-                    .foregroundStyle(selectedTechnique != nil ? AppColors.accent : AppColors.subtleText)
-                    .frame(width: 28, height: 28)
-                    .deepGlass(.circle, isActive: selectedTechnique != nil)
-            }
-        }
-    }
-
-    // MARK: Warm-Up Toggle Button
-
-    /// Small "W" button that toggles warm-up mode for the next set.
-    var warmUpToggleButton: some View {
-        Button {
-            isWarmUpToggled.toggle()
-            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-        } label: {
-            Text("W")
-                .font(.system(size: 12, weight: .bold, design: .rounded))
-                .foregroundStyle(isWarmUpToggled ? AppColors.gold : AppColors.subtleText)
-                .frame(width: 32, height: 32)
-                .deepGlass(.circle, isActive: isWarmUpToggled)
-        }
-        .buttonStyle(.plain)
-    }
-
     // MARK: Timer Shortcut Button
 
     /// Small timer button that opens the center timer panel.
@@ -243,9 +184,9 @@ extension WorkoutView {
                 UIImpactFeedbackGenerator(style: .light).impactOccurred()
             } label: {
                 Image(systemName: "timer")
-                    .font(.system(size: 12, weight: .bold))
+                    .font(.system(size: 14, weight: .bold))
                     .foregroundStyle(timerManager.isRunning ? AppColors.positive : AppColors.subtleText)
-                    .frame(width: 32, height: 32)
+                    .frame(width: 37, height: 37)
                     .deepGlass(.circle)
             }
             .buttonStyle(.plain)
@@ -268,9 +209,9 @@ extension WorkoutView {
                     }
                 } label: {
                     Image(systemName: "xmark")
-                        .font(.system(size: 10, weight: .bold))
+                        .font(.system(size: 12, weight: .bold))
                         .foregroundStyle(AppColors.subtleText)
-                        .frame(width: 24, height: 24)
+                        .frame(width: 32, height: 32)
                         .deepGlass(.circle)
                 }
                 .buttonStyle(.plain)
@@ -336,7 +277,7 @@ extension WorkoutView {
             Text(TimerManager.durationLabel(duration))
                 .font(.system(size: 10, weight: .bold, design: .rounded).monospacedDigit())
                 .foregroundStyle(timerManager.countdownDuration == duration ? AppColors.accent : AppColors.subtleText)
-                .frame(width: 40, height: 24)
+                .frame(width: 40, height: 28)
                 .deepGlass(.capsule, isActive: timerManager.countdownDuration == duration)
         }
         .buttonStyle(.plain)
@@ -347,22 +288,18 @@ extension WorkoutView {
     /// Handles logging a set with haptic feedback, confirmation animation, and PR detection.
     func logSetAction() {
         let success = workoutManager.logSet(
-            isWarmUp: isWarmUpToggled,
-            toFailure: toFailureToggled,
-            intensityTechnique: selectedTechnique
+            isWarmUp: false,
+            toFailure: false,
+            intensityTechnique: nil
         )
         if success {
-            // Reset toggles after logging
-            isWarmUpToggled = false
-            toFailureToggled = false
-            selectedTechnique = nil
             UIImpactFeedbackGenerator(style: .medium).impactOccurred()
 
             AppAnimation.perform(AppAnimation.quick) {
                 showSetLogged = true
             }
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-                withAnimation { showSetLogged = false }
+                AppAnimation.perform(AppAnimation.quick) { showSetLogged = false }
             }
 
             if let pr = workoutManager.newPRAlert {
@@ -373,7 +310,7 @@ extension WorkoutView {
                 }
                 workoutManager.newPRAlert = nil
                 DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                    withAnimation { showPRBadge = false }
+                    AppAnimation.perform(AppAnimation.quick) { showPRBadge = false }
                 }
             }
 

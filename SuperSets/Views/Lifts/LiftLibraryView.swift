@@ -1,12 +1,13 @@
 // LiftLibraryView.swift
 // Super Sets — The Workout Tracker
 //
-// Two-step exercise picker:
-//   Step 1: ALL 13 muscle groups as frosted glass orbs with visible icons
-//   Step 2: Tap an orb -> exercises appear as glass capsule buttons
+// Single-screen exercise picker with:
+//   1. Search bar at top (glass slab capsule)
+//   2. Recent lifts (horizontal scroll capsules)
+//   3. Grouped muscle grid (4-column, organized by section)
+//   4. Tap a group → exercise list with circular icons
 //
-// v2.0 — 10x LIQUID GLASS: 84pt muscle orbs, glass gem context orb,
-// slab search bars, glass gem exercise icons, glass gem custom badge.
+// v3.0 — Merged Quick Pick into Add Lift. Search + recents + grouped grid.
 
 import SwiftUI
 import SwiftData
@@ -40,7 +41,7 @@ struct LiftLibraryView: View {
                 if let group = selectedGroup {
                     liftList(for: group)
                 } else {
-                    muscleGroupOrbs
+                    mainPickerView
                 }
             }
             .appBackground()
@@ -80,95 +81,105 @@ struct LiftLibraryView: View {
         }
     }
 
-    // MARK: - Step 1: Muscle Group Orbs
+    // MARK: - Main Picker View (Search + Recents + Grouped Grid)
 
-    private var muscleGroupOrbs: some View {
+    private var mainPickerView: some View {
         ScrollView {
-            VStack(spacing: 20) {
-                Text("Tap a muscle group")
-                    .font(.subheadline)
-                    .foregroundStyle(AppColors.subtleText)
-                    .padding(.top, 4)
+            VStack(spacing: 16) {
+                // Search bar — glass slab capsule
+                searchBar
 
-                GlassEffectContainer(spacing: 16.0) {
-                    LazyVGrid(
-                        columns: [
-                            GridItem(.flexible(), spacing: 12),
-                            GridItem(.flexible(), spacing: 12),
-                            GridItem(.flexible(), spacing: 12)
-                        ],
-                        spacing: 14
-                    ) {
-                        ForEach(MuscleGroup.allCases) { group in
-                            muscleOrb(for: group)
-                        }
+                if !searchText.isEmpty {
+                    // Search results
+                    searchResultsList
+                } else {
+                    // Recent lifts (when not searching, when recents exist)
+                    if !workoutManager.recentLifts.isEmpty {
+                        recentLiftsRow
                     }
-                    .padding(.horizontal, 16)
+
+                    // Grouped muscle grid
+                    groupedMuscleGrid
                 }
-
-                // Global search — glass slab capsule
-                VStack(spacing: 8) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "magnifyingglass")
-                            .font(.system(size: 14))
-                            .foregroundStyle(AppColors.subtleText)
-
-                        TextField("Search all exercises...", text: $searchText)
-                            .font(.subheadline)
-                            .foregroundStyle(AppColors.primaryText)
-                    }
-                    .padding(12)
-                    .glassSlab(.capsule)
-                    .padding(.horizontal, 16)
-
-                    if !searchText.isEmpty {
-                        globalSearchResults
-                    }
-                }
-                .padding(.top, 4)
 
                 Spacer().frame(height: 20)
             }
+            .padding(.top, 4)
         }
         .scrollDismissesKeyboard(.interactively)
     }
 
-    /// 84pt muscle group orb with deep glass treatment.
-    private func muscleOrb(for group: MuscleGroup) -> some View {
-        let catalogCount = PreloadedLifts.catalog[group]?.count ?? 0
-        let customCount = allLifts.filter { $0.muscleGroup == group && $0.isCustom }.count
-        let totalCount = catalogCount + customCount
+    // MARK: - Search Bar
 
-        return Button {
-            AppAnimation.perform(AppAnimation.spring) {
-                selectedGroup = group
+    private var searchBar: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 14))
+                .foregroundStyle(AppColors.subtleText)
+
+            TextField("Search all exercises...", text: $searchText)
+                .font(.subheadline)
+                .foregroundStyle(AppColors.primaryText)
+                .autocorrectionDisabled()
+
+            if !searchText.isEmpty {
+                Button {
+                    searchText = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 14))
+                        .foregroundStyle(AppColors.subtleText)
+                }
+                .buttonStyle(.plain)
             }
-        } label: {
-            VStack(spacing: 6) {
-                // 84pt deep glass orb
-                Image(systemName: group.iconName)
-                    .font(.system(size: 28, weight: .semibold))
-                    .foregroundStyle(AppColors.gold)
-                    .frame(width: 84, height: 84)
-                    .deepGlass(.circle)
-
-                Text(group.displayName)
-                    .font(.caption2.bold())
-                    .foregroundStyle(AppColors.primaryText)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-
-                Text("\(totalCount)")
-                    .font(.system(size: 9, weight: .bold).monospacedDigit())
-                    .foregroundStyle(AppColors.subtleText)
-            }
-            .frame(maxWidth: .infinity)
         }
-        .buttonStyle(.plain)
+        .padding(12)
+        .glassSlab(.capsule)
+        .padding(.horizontal, 16)
     }
 
-    /// Global search across ALL exercises (catalog + custom).
-    private var globalSearchResults: some View {
+    // MARK: - Recent Lifts
+
+    private var recentLiftsRow: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Recent")
+                .font(.caption.bold())
+                .foregroundStyle(AppColors.subtleText)
+                .padding(.horizontal, 16)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(workoutManager.recentLifts, id: \.name) { lift in
+                        Button {
+                            workoutManager.selectLift(lift)
+                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                            dismiss()
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: lift.muscleGroup.iconName)
+                                    .font(.system(size: 10))
+                                    .foregroundStyle(AppColors.gold)
+
+                                Text(lift.name)
+                                    .font(.caption.bold())
+                                    .foregroundStyle(AppColors.primaryText)
+                                    .lineLimit(1)
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .deepGlass(.capsule)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, 16)
+            }
+        }
+    }
+
+    // MARK: - Search Results
+
+    private var searchResultsList: some View {
         let matches = mergedLifts().filter {
             $0.name.localizedCaseInsensitiveContains(searchText)
         }
@@ -190,7 +201,73 @@ struct LiftLibraryView: View {
         }
     }
 
-    // MARK: - Step 2: Lift List
+    // MARK: - Grouped Muscle Grid
+
+    private var groupedMuscleGrid: some View {
+        VStack(spacing: 20) {
+            ForEach(MuscleGroup.groupedSections) { section in
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(section.title)
+                        .font(.subheadline.bold())
+                        .foregroundStyle(AppColors.subtleText)
+                        .padding(.horizontal, 16)
+
+                    GlassEffectContainer(spacing: 12.0) {
+                        LazyVGrid(
+                            columns: [
+                                GridItem(.flexible(), spacing: 8),
+                                GridItem(.flexible(), spacing: 8),
+                                GridItem(.flexible(), spacing: 8),
+                                GridItem(.flexible(), spacing: 8)
+                            ],
+                            spacing: 12
+                        ) {
+                            ForEach(section.groups) { group in
+                                muscleGroupCell(for: group)
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                }
+            }
+        }
+    }
+
+    /// 60×60 muscle group circle with icon, name, and exercise count.
+    private func muscleGroupCell(for group: MuscleGroup) -> some View {
+        let catalogCount = PreloadedLifts.catalog[group]?.count ?? 0
+        let customCount = allLifts.filter { $0.muscleGroup == group && $0.isCustom }.count
+        let totalCount = catalogCount + customCount
+
+        return Button {
+            AppAnimation.perform(AppAnimation.spring) {
+                selectedGroup = group
+            }
+        } label: {
+            VStack(spacing: 4) {
+                Image(systemName: group.iconName)
+                    .font(.system(size: 22, weight: .semibold))
+                    .foregroundStyle(AppColors.gold)
+                    .frame(width: 60, height: 60)
+                    .deepGlass(.circle)
+
+                Text(group.displayName)
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(AppColors.primaryText)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                    .shadow(color: .black.opacity(0.3), radius: 2, y: 1)
+
+                Text("\(totalCount)")
+                    .font(.system(size: 8, weight: .bold).monospacedDigit())
+                    .foregroundStyle(AppColors.subtleText)
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Lift List (Step 2)
 
     private func liftList(for group: MuscleGroup) -> some View {
         let groupLifts = mergedLifts(for: group).filter {

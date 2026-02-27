@@ -195,7 +195,7 @@ extension WorkoutView {
                     .font(.system(size: 20, weight: .bold))
                     .foregroundStyle(AppColors.accent)
 
-                Text("Tap \"Add Lift\" or \"Quick\"\nto get started!")
+                Text("Tap \"Add Lift\"\nto get started!")
                     .font(.subheadline.bold())
                     .foregroundStyle(AppColors.primaryText)
                     .multilineTextAlignment(.center)
@@ -217,7 +217,7 @@ extension WorkoutView {
 
     // MARK: Top Buttons Row
 
-    /// Top row: Add Lift + Quick Pick (left), unit label (center), Super Set (right).
+    /// Top row: Add Lift (left), Splits, unit label (center), Super Set (right).
     var topButtonsRow: some View {
         HStack {
             // Add Lift — upper left
@@ -237,24 +237,6 @@ extension WorkoutView {
             .buttonStyle(.plain)
             .accessibilityLabel("Add Lift")
             .accessibilityHint("Opens the exercise library to add a new lift to your ring")
-
-            // Quick picker — searchable list
-            Button {
-                showingQuickPicker = true
-            } label: {
-                VStack(spacing: 2) {
-                    Image(systemName: "list.bullet")
-                        .font(.system(size: 14, weight: .bold))
-                    Text("Quick")
-                        .font(.system(size: 7, weight: .semibold))
-                }
-                .foregroundStyle(AppColors.accent)
-                .frame(width: 50, height: 50)
-                .deepGlass(.circle)
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Quick Pick")
-            .accessibilityHint("Opens a searchable list to quickly add an exercise")
 
             // Splits — load workout templates
             Button {

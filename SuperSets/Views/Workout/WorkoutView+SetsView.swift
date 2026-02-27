@@ -1,9 +1,9 @@
 // WorkoutView+SetsView.swift
 // Super Sets — The Workout Tracker
 //
-// Extension: Combined sets view — Today (left) vs Previous (right)
-// side-by-side comparison table, set rows, super set display groups,
-// End Workout button, and workout elapsed time.
+// Extension: Combined sets view — Previous (left) vs Today (right)
+// side-by-side comparison table, inline set editing, super set display groups,
+// End Workout button (bottom-left), and workout elapsed time.
 
 import SwiftUI
 
@@ -11,55 +11,28 @@ import SwiftUI
 
 extension WorkoutView {
 
-    // MARK: Combined Sets View (Today + Comparison Side-by-Side)
+    // MARK: Combined Sets View (Comparison Side-by-Side)
 
     var combinedSetsView: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // Header with End Workout button
-            HStack {
-                if workoutManager.selectedLift != nil {
-                    HStack(spacing: 6) {
-                        Circle()
-                            .fill(AppColors.gold)
-                            .frame(width: 8, height: 8)
-                            .glassGem(.circle)
+            // Header
+            if workoutManager.selectedLift != nil {
+                HStack(spacing: 6) {
+                    Circle()
+                        .fill(AppColors.gold)
+                        .frame(width: 8, height: 8)
+                        .glassGem(.circle)
 
-                        Text("Sets")
-                            .font(.subheadline.bold())
-                            .foregroundStyle(AppColors.primaryText)
-                    }
+                    Text("Sets")
+                        .font(.subheadline.bold())
+                        .foregroundStyle(AppColors.primaryText)
                 }
-
-                Spacer()
-
-                // End Workout button
-                Button {
-                    showingEndConfirmation = true
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "flag.fill")
-                            .font(.caption2)
-                        Text("End")
-                            .font(.caption.bold())
-                    }
-                    .foregroundStyle(AppColors.danger)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 8)
-                    .deepGlass(.capsule)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("End Workout")
-                .accessibilityHint("Saves your workout and shows a summary")
             }
 
-            // Column headers in a glass row
+            // Column headers — swapped: # | Previous | arrow | Today
             HStack(spacing: 0) {
                 Text("#")
                     .frame(width: 24, alignment: .leading)
-                Text("Today")
-                    .frame(maxWidth: .infinity)
-                Text("")
-                    .frame(width: 24)
 
                 if let date = workoutManager.previousWorkoutDate {
                     Text(Formatters.shortDate.string(from: date))
@@ -68,6 +41,12 @@ extension WorkoutView {
                     Text("Previous")
                         .frame(maxWidth: .infinity)
                 }
+
+                Text("")
+                    .frame(width: 24)
+
+                Text("Today")
+                    .frame(maxWidth: .infinity)
             }
             .font(.caption.bold())
             .foregroundStyle(AppColors.subtleText)
@@ -113,7 +92,7 @@ extension WorkoutView {
                 }
             }
 
-            // Workout elapsed time at the bottom of sets area
+            // Workout elapsed time + End Workout at bottom
             if workoutManager.activeWorkout != nil {
                 Divider().background(AppColors.divider)
 
@@ -124,23 +103,47 @@ extension WorkoutView {
                         let minutes = (Int(elapsed) % 3600) / 60
                         let seconds = Int(elapsed) % 60
 
-                        HStack(spacing: 6) {
-                            Circle()
-                                .fill(AppColors.positive)
-                                .frame(width: 6, height: 6)
+                        HStack(spacing: 8) {
+                            // End Workout button — bottom left
+                            Button {
+                                showingEndConfirmation = true
+                            } label: {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "flag.fill")
+                                        .font(.caption2)
+                                    Text("End Workout")
+                                        .font(.caption.bold())
+                                }
+                                .foregroundStyle(AppColors.danger)
+                                .padding(.horizontal, 18)
+                                .padding(.vertical, 10)
+                                .frame(minHeight: 44)
+                                .deepGlass(.capsule)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("End Workout")
+                            .accessibilityHint("Saves your workout and shows a summary")
 
-                            Text("Workout Time")
-                                .font(.caption2.bold())
-                                .foregroundStyle(AppColors.subtleText)
+                            Spacer()
 
-                            Text(hours > 0
-                                 ? String(format: "%d:%02d:%02d", hours, minutes, seconds)
-                                 : String(format: "%02d:%02d", minutes, seconds))
-                                .font(.caption.monospacedDigit().bold())
-                                .foregroundStyle(AppColors.primaryText)
-                                .contentTransition(.numericText())
+                            // Elapsed time
+                            HStack(spacing: 6) {
+                                Circle()
+                                    .fill(AppColors.positive)
+                                    .frame(width: 6, height: 6)
+
+                                Text("Workout Time")
+                                    .font(.caption2.bold())
+                                    .foregroundStyle(AppColors.subtleText)
+
+                                Text(hours > 0
+                                     ? String(format: "%d:%02d:%02d", hours, minutes, seconds)
+                                     : String(format: "%02d:%02d", minutes, seconds))
+                                    .font(.caption.monospacedDigit().bold())
+                                    .foregroundStyle(AppColors.primaryText)
+                                    .contentTransition(.numericText())
+                            }
                         }
-                        .frame(maxWidth: .infinity)
                     }
                 }
             }
@@ -151,58 +154,207 @@ extension WorkoutView {
 
     // MARK: Set Row
 
-    /// A single row: Today (left), arrow (center), Previous (right).
+    /// A single row: # | Previous (left) | arrow | Today (right).
+    /// Tapping today's set opens inline editing.
     func setRow(index: Int, todaySet: WorkoutSet?, previousSet: WorkoutSet?) -> some View {
-        HStack(spacing: 0) {
-            Text("\(index + 1)")
-                .font(.caption.monospacedDigit().bold())
-                .foregroundStyle(AppColors.subtleText)
-                .frame(width: 24, alignment: .leading)
+        let setId = todaySet.map { "\($0.timestamp.timeIntervalSince1970)" }
+        let isEditing = setId != nil && editingSetId == setId
 
-            // Today's set with inline delete
-            HStack(spacing: 6) {
-                if let today = todaySet {
-                    Text(today.formattedDisplay)
-                        .font(.body.monospacedDigit().bold())
-                        .foregroundStyle(today.isWarmUp ? AppColors.subtleText : AppColors.primaryText)
+        return VStack(spacing: 0) {
+            HStack(spacing: 0) {
+                Text("\(index + 1)")
+                    .font(.caption.monospacedDigit().bold())
+                    .foregroundStyle(AppColors.subtleText)
+                    .frame(width: 24, alignment: .leading)
 
-                    Button {
-                        AppAnimation.perform(AppAnimation.quick) {
-                            workoutManager.deleteSet(today)
-                        }
-                    } label: {
-                        Image(systemName: "minus.circle.fill")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(AppColors.danger)
-                            .frame(width: 40, height: 40)
-                            .deepGlass(.circle)
+                // Previous set (left)
+                Group {
+                    if let prev = previousSet {
+                        Text(prev.formattedDisplay)
+                            .font(.body.monospacedDigit())
+                            .foregroundStyle(AppColors.subtleText)
+                    } else {
+                        Text("\u{2014}")
+                            .foregroundStyle(AppColors.subtleText.opacity(0.4))
                     }
-                    .buttonStyle(.plain)
-                } else {
-                    Text("\u{2014}")
-                        .foregroundStyle(AppColors.subtleText.opacity(0.4))
+                }
+                .frame(maxWidth: .infinity)
+
+                comparisonArrow(today: todaySet, previous: previousSet)
+                    .frame(width: 24)
+
+                // Today's set with inline delete (right)
+                HStack(spacing: 6) {
+                    if let today = todaySet {
+                        Text(today.formattedDisplay)
+                            .font(.body.monospacedDigit().bold())
+                            .foregroundStyle(today.isWarmUp ? AppColors.subtleText : AppColors.primaryText)
+
+                        Button {
+                            AppAnimation.perform(AppAnimation.quick) {
+                                workoutManager.deleteSet(today)
+                            }
+                        } label: {
+                            Image(systemName: "minus.circle.fill")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundStyle(AppColors.danger)
+                                .frame(width: 44, height: 44)
+                                .deepGlass(.circle)
+                        }
+                        .buttonStyle(.plain)
+                    } else {
+                        Text("\u{2014}")
+                            .foregroundStyle(AppColors.subtleText.opacity(0.4))
+                    }
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .padding(.vertical, 4)
+            .padding(.horizontal, 4)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                if let today = todaySet {
+                    toggleEditing(for: today)
                 }
             }
-            .frame(maxWidth: .infinity)
 
-            comparisonArrow(today: todaySet, previous: previousSet)
-                .frame(width: 24)
-
-            Group {
-                if let prev = previousSet {
-                    Text(prev.formattedDisplay)
-                        .font(.body.monospacedDigit())
-                        .foregroundStyle(AppColors.subtleText)
-                } else {
-                    Text("\u{2014}")
-                        .foregroundStyle(AppColors.subtleText.opacity(0.4))
-                }
+            // Inline edit panel
+            if isEditing, let today = todaySet {
+                setEditPanel(for: today)
             }
-            .frame(maxWidth: .infinity)
         }
-        .padding(.vertical, 4)
-        .padding(.horizontal, 4)
         .glassRow(cornerRadius: 10)
+    }
+
+    // MARK: Inline Set Edit Panel
+
+    /// Edit panel shown below a set row when editing.
+    func setEditPanel(for set: WorkoutSet) -> some View {
+        VStack(spacing: 8) {
+            HStack(spacing: 8) {
+                // Weight field
+                TextField("Wt", text: $editWeight)
+                    .keyboardType(.decimalPad)
+                    .font(.system(size: 14, weight: .bold).monospacedDigit())
+                    .foregroundStyle(AppColors.primaryText)
+                    .multilineTextAlignment(.center)
+                    .frame(width: 60, height: 32)
+                    .glassField(cornerRadius: 8)
+
+                // Reps field
+                TextField("Rps", text: $editReps)
+                    .keyboardType(.numberPad)
+                    .font(.system(size: 14, weight: .bold).monospacedDigit())
+                    .foregroundStyle(AppColors.primaryText)
+                    .multilineTextAlignment(.center)
+                    .frame(width: 60, height: 32)
+                    .glassField(cornerRadius: 8)
+
+                // W (warm-up) toggle
+                Button {
+                    editIsWarmUp.toggle()
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                } label: {
+                    Text("W")
+                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .foregroundStyle(editIsWarmUp ? AppColors.gold : AppColors.subtleText)
+                        .frame(width: 36, height: 36)
+                        .deepGlass(.circle, isActive: editIsWarmUp)
+                }
+                .buttonStyle(.plain)
+
+                // F (failure) toggle
+                Button {
+                    editToFailure.toggle()
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                } label: {
+                    Text("F")
+                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .foregroundStyle(editToFailure ? AppColors.danger : AppColors.subtleText)
+                        .frame(width: 36, height: 36)
+                        .deepGlass(.circle, isActive: editToFailure)
+                }
+                .buttonStyle(.plain)
+
+                // IT (intensity technique) menu
+                Menu {
+                    Button("None") { editTechnique = nil }
+                    ForEach(IntensityTechnique.allCases) { tech in
+                        Button(tech.rawValue) { editTechnique = tech }
+                    }
+                } label: {
+                    Text(editTechnique?.shortLabel ?? "IT")
+                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                        .foregroundStyle(editTechnique != nil ? AppColors.accent : AppColors.subtleText)
+                        .frame(width: 36, height: 36)
+                        .deepGlass(.circle, isActive: editTechnique != nil)
+                }
+            }
+
+            // Save button
+            Button {
+                saveEdit(for: set)
+            } label: {
+                Text("Save")
+                    .font(.caption.bold())
+                    .foregroundStyle(AppColors.accent)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .deepGlass(.capsule)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 8)
+        .transition(.opacity.combined(with: .move(edge: .top)))
+    }
+
+    // MARK: Editing Helpers
+
+    /// Populate edit state from a WorkoutSet, or dismiss if already editing.
+    func toggleEditing(for set: WorkoutSet) {
+        let setId = "\(set.timestamp.timeIntervalSince1970)"
+
+        if editingSetId == setId {
+            // Already editing this set — dismiss
+            AppAnimation.perform(AppAnimation.quick) {
+                editingSetId = nil
+            }
+            return
+        }
+
+        // Populate fields
+        editWeight = set.weight.truncatingRemainder(dividingBy: 1) == 0
+            ? String(format: "%.0f", set.weight)
+            : String(format: "%.1f", set.weight)
+        editReps = "\(set.reps)"
+        editIsWarmUp = set.isWarmUp
+        editToFailure = set.toFailure
+        editTechnique = set.intensityTechnique
+
+        AppAnimation.perform(AppAnimation.quick) {
+            editingSetId = setId
+        }
+    }
+
+    /// Save inline edits back to the WorkoutSet via WorkoutManager.
+    func saveEdit(for set: WorkoutSet) {
+        guard let weight = Double(editWeight), weight > 0,
+              let reps = Int(editReps), reps > 0 else { return }
+
+        workoutManager.updateSet(
+            set,
+            weight: weight,
+            reps: reps,
+            isWarmUp: editIsWarmUp,
+            toFailure: editToFailure,
+            intensityTechnique: editTechnique
+        )
+
+        AppAnimation.perform(AppAnimation.quick) {
+            editingSetId = nil
+        }
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
     }
 
     // MARK: Super Set Display Group
@@ -234,7 +386,7 @@ extension WorkoutView {
                     Image(systemName: "minus.circle.fill")
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundStyle(AppColors.danger)
-                        .frame(width: 32, height: 32)
+                        .frame(width: 44, height: 44)
                         .deepGlass(.circle)
                 }
                 .buttonStyle(.plain)

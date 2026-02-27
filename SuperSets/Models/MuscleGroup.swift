@@ -30,58 +30,64 @@ enum MuscleGroup: String, CaseIterable, Codable, Identifiable {
     case calves
     case biceps
     case triceps
-    
+    case cardio
+    case stretching
+
     // LEARNING NOTE:
     // Identifiable requires an `id` property. Since our raw value is already
     // a unique String, we can just return self. This lets SwiftUI identify
     // each case without us providing an explicit id in ForEach loops.
     var id: Self { self }
-    
+
     // MARK: - Display Properties
-    
+
     /// Human-readable name shown in the UI.
     /// We use a switch instead of just rawValue because some names
     /// need spaces or different formatting (e.g., "lowerBack" → "Lower Back").
     var displayName: String {
         switch self {
-        case .chest:     return "Chest"
-        case .lats:      return "Lats"
-        case .lowerBack: return "Lower Back"
-        case .traps:     return "Traps"
-        case .neck:      return "Neck"
-        case .shoulders: return "Shoulders"
-        case .abs:       return "Abs"
-        case .quads:     return "Quads"
-        case .legBiceps: return "Hamstrings"
-        case .glutes:    return "Glutes"
-        case .calves:    return "Calves"
-        case .biceps:    return "Biceps"
-        case .triceps:   return "Triceps"
+        case .chest:      return "Chest"
+        case .lats:       return "Lats"
+        case .lowerBack:  return "Lower Back"
+        case .traps:      return "Traps"
+        case .neck:       return "Neck"
+        case .shoulders:  return "Shoulders"
+        case .abs:        return "Abs"
+        case .quads:      return "Quads"
+        case .legBiceps:  return "Hamstrings"
+        case .glutes:     return "Glutes"
+        case .calves:     return "Calves"
+        case .biceps:     return "Biceps"
+        case .triceps:    return "Triceps"
+        case .cardio:     return "Cardio"
+        case .stretching: return "Stretching"
         }
     }
-    
+
     /// SF Symbol icon name for each muscle group.
     /// These appear in the Add Lift picker and the lift library.
     var iconName: String {
         switch self {
-        case .chest:     return "suit.heart.fill"              // chest/heart region
-        case .lats:      return "triangle.fill"                // back width/V-taper
-        case .lowerBack: return "figure.core.training"         // lower back exercises
-        case .traps:     return "arrow.up.to.line.compact"     // traps raise toward neck
-        case .neck:      return "head.profile.fill"            // neck/head profile
-        case .shoulders: return "arrow.up.and.down.and.arrow.left.and.right"  // shoulders all directions
-        case .abs:       return "square.grid.3x3.fill"         // six-pack abs grid
-        case .quads:     return "figure.walk"                  // front of legs
-        case .legBiceps: return "figure.strengthtraining.traditional"  // hamstrings/back of legs
-        case .glutes:    return "figure.stairs"                // glute activation
-        case .calves:    return "figure.run"                   // calves/running
-        case .biceps:    return "figure.arms.open"             // bicep curl/arms
-        case .triceps:   return "figure.cooldown"              // tricep extension
+        case .chest:      return "figure.arms.open"
+        case .lats:       return "figure.rowing"
+        case .lowerBack:  return "figure.core.training"
+        case .traps:      return "chevron.up.2"
+        case .neck:       return "head.profile.fill"
+        case .shoulders:  return "figure.boxing"
+        case .abs:        return "square.grid.3x3.fill"
+        case .quads:      return "figure.lunges"
+        case .legBiceps:  return "figure.strengthtraining.traditional"
+        case .glutes:     return "figure.stairs"
+        case .calves:     return "figure.run"
+        case .biceps:     return "dumbbell.fill"
+        case .triceps:    return "figure.cooldown"
+        case .cardio:     return "figure.mixed.cardio"
+        case .stretching: return "figure.flexibility"
         }
     }
-    
+
     // MARK: - Accent Colors
-    
+
     /// Each muscle group gets a unique accent color.
     /// This creates visual variety throughout the app and helps users
     /// quickly identify which body part they're working.
@@ -92,21 +98,42 @@ enum MuscleGroup: String, CaseIterable, Codable, Identifiable {
     /// bottom of this file to make hex initialization cleaner.
     var accentColor: Color {
         switch self {
-        case .chest:     return Color(hex: 0xFF6B6B)  // coral red
-        case .lats:      return Color(hex: 0x4ECDC4)  // teal
-        case .lowerBack: return Color(hex: 0xFFBE0B)  // golden amber
-        case .traps:     return Color(hex: 0x845EC2)  // deep purple
-        case .neck:      return Color(hex: 0xF9A8D4)  // pink
-        case .shoulders: return Color(hex: 0xFF9F43)  // tangerine
-        case .abs:       return Color(hex: 0x54A0FF)  // bright blue
-        case .quads:     return Color(hex: 0x00D2D3)  // cyan
-        case .legBiceps: return Color(hex: 0xA3CB38)  // lime green
-        case .glutes:    return Color(hex: 0xF368E0)  // magenta
-        case .calves:    return Color(hex: 0x10AC84)  // emerald
-        case .biceps:    return Color(hex: 0xEE5A24)  // burnt orange
-        case .triceps:   return Color(hex: 0x0ABDE3)  // sky blue
+        case .chest:      return Color(hex: 0xFF6B6B)  // coral red
+        case .lats:       return Color(hex: 0x4ECDC4)  // teal
+        case .lowerBack:  return Color(hex: 0xFFBE0B)  // golden amber
+        case .traps:      return Color(hex: 0x845EC2)  // deep purple
+        case .neck:       return Color(hex: 0xF9A8D4)  // pink
+        case .shoulders:  return Color(hex: 0xFF9F43)  // tangerine
+        case .abs:        return Color(hex: 0x54A0FF)  // bright blue
+        case .quads:      return Color(hex: 0x00D2D3)  // cyan
+        case .legBiceps:  return Color(hex: 0xA3CB38)  // lime green
+        case .glutes:     return Color(hex: 0xF368E0)  // magenta
+        case .calves:     return Color(hex: 0x10AC84)  // emerald
+        case .biceps:     return Color(hex: 0xEE5A24)  // burnt orange
+        case .triceps:    return Color(hex: 0x0ABDE3)  // sky blue
+        case .cardio:     return Color(hex: 0xFF5722)  // deep orange
+        case .stretching: return Color(hex: 0x8BC34A)  // light green
         }
     }
+
+    // MARK: - Grouped Sections
+
+    /// Sections for the muscle group grid in LiftLibraryView.
+    static let groupedSections: [MuscleGroupSection] = [
+        MuscleGroupSection(title: "Upper Body", groups: [.chest, .lats, .biceps, .shoulders, .triceps, .traps, .lowerBack, .neck]),
+        MuscleGroupSection(title: "Lower Body", groups: [.quads, .legBiceps, .glutes, .calves, .abs]),
+        MuscleGroupSection(title: "Cardio", groups: [.cardio]),
+        MuscleGroupSection(title: "Stretching", groups: [.stretching]),
+    ]
+}
+
+// MARK: - MuscleGroupSection
+
+/// A named section of muscle groups for the grouped grid layout.
+struct MuscleGroupSection: Identifiable {
+    let id = UUID()
+    let title: String
+    let groups: [MuscleGroup]
 }
 
 // MARK: - Color Hex Extension
