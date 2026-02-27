@@ -176,6 +176,28 @@ struct PreloadedLifts {
             "Diamond Push-ups",
             "Machine Tricep Extension",
             "JM Press"
+        ],
+
+        .cardio: [
+            "Treadmill Run",
+            "Stationary Bike",
+            "Rowing Machine",
+            "Elliptical",
+            "Jump Rope",
+            "Stair Climber",
+            "Battle Ropes",
+            "Cycling"
+        ],
+
+        .stretching: [
+            "Hamstring Stretch",
+            "Quad Stretch",
+            "Hip Flexor Stretch",
+            "Shoulder Stretch",
+            "Chest Stretch",
+            "Calf Stretch",
+            "Cat-Cow Stretch",
+            "Child's Pose"
         ]
     ]
     

@@ -25,6 +25,11 @@ import SwiftUI
 @Observable
 final class WorkoutManager {
 
+    // MARK: - Constants
+
+    /// Number of lift slots on the rotary ring.
+    static let ringSlotCount = 10
+
     // MARK: - Dependencies
 
     /// SwiftData model context for all database operations.
@@ -224,6 +229,18 @@ final class WorkoutManager {
         save()
     }
 
+    /// Update an existing set's properties (for post-log inline editing).
+    func updateSet(_ set: WorkoutSet, weight: Double, reps: Int,
+                   isWarmUp: Bool, toFailure: Bool,
+                   intensityTechnique: IntensityTechnique?) {
+        set.weight = weight
+        set.reps = reps
+        set.isWarmUp = isWarmUp
+        set.toFailure = toFailure
+        set.intensityTechnique = intensityTechnique
+        save()
+    }
+
     // MARK: - Lift Selection
 
     /// Select a lift for the current workout.
@@ -328,8 +345,8 @@ final class WorkoutManager {
     /// Insert a new lift at the front of the ring (max 10). Does NOT reorder existing lifts.
     func addToRecentLifts(_ lift: LiftDefinition) {
         recentLifts.insert(lift, at: 0)
-        if recentLifts.count > 10 {
-            recentLifts = Array(recentLifts.prefix(10))
+        if recentLifts.count > Self.ringSlotCount {
+            recentLifts = Array(recentLifts.prefix(Self.ringSlotCount))
         }
     }
 
@@ -518,7 +535,7 @@ final class WorkoutManager {
             }
             return false
         } else {
-            guard superSetLifts.count < 5 else { return false }
+            guard superSetLifts.count < recentLifts.count else { return false }
             superSetLifts.append(lift)
             // Add to ring if not already present
             if !recentLifts.contains(where: { $0.name == lift.name }) {
