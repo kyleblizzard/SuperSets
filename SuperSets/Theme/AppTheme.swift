@@ -698,4 +698,14 @@ enum AppAnimation {
     static let spring = Animation.spring(response: 0.35, dampingFraction: 0.7)
     static let quick = Animation.spring(response: 0.25, dampingFraction: 0.8)
     static let smooth = Animation.spring(response: 0.5, dampingFraction: 0.8)
+
+    /// Wraps `withAnimation`, skipping the animation when Reduce Motion is enabled.
+    @MainActor
+    static func perform(_ animation: Animation, _ body: () -> Void) {
+        if UIAccessibility.isReduceMotionEnabled {
+            body()
+        } else {
+            withAnimation(animation, body)
+        }
+    }
 }

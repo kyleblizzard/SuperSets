@@ -112,16 +112,12 @@ final class Workout {
     
     /// Date formatted for display: "Mon, Jan 15"
     var formattedDate: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "EEE, MMM d"
-        return formatter.string(from: date)
+        Formatters.weekdayShortDate.string(from: date)
     }
-    
+
     /// Full date for detail views: "Monday, January 15, 2026"
     var fullFormattedDate: String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .full
-        return formatter.string(from: date)
+        Formatters.fullDate.string(from: date)
     }
     
     // MARK: Initializer

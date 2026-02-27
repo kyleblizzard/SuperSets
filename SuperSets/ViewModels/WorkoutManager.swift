@@ -11,88 +11,14 @@
 //
 // @Observable (iOS 17+) replaces ObservableObject. Every property
 // change automatically triggers view updates. No @Published needed.
+//
+// Extensions in separate files:
+//   WorkoutManager+Analytics.swift  — PRs, progression, volume, stats, summary
+//   WorkoutManager+BodyTracking.swift — Body weight, calorie estimates
 
 import Foundation
 import SwiftData
 import SwiftUI
-
-// MARK: - Personal Record Types
-
-/// Represents the four types of personal records tracked per lift.
-///
-/// LEARNING NOTE:
-/// Using a struct instead of a tuple gives us named fields, Identifiable
-/// conformance for SwiftUI lists, and the ability to add computed properties.
-/// Tuples are convenient but don't scale — once you need more than 2-3 fields
-/// or want to pass them around, a struct is the way to go.
-struct PersonalRecord: Identifiable {
-    let id = UUID()
-    let liftName: String
-    let muscleGroup: MuscleGroup
-    
-    /// Heaviest single set ever performed (max weight regardless of reps).
-    var heaviestWeight: Double = 0
-    var heaviestWeightDate: Date?
-    
-    /// Best volume from a single set (weight × reps).
-    var bestVolume: Double = 0
-    var bestVolumeDate: Date?
-    
-    /// Most reps in a single set at any weight.
-    var mostReps: Int = 0
-    var mostRepsDate: Date?
-    
-    /// Estimated 1RM using the Epley formula: weight × (1 + reps / 30).
-    /// Calculated from whichever set produces the highest estimate.
-    var estimated1RM: Double = 0
-    var estimated1RMDate: Date?
-}
-
-/// Which PR category was beaten (for the 🏆 badge in WorkoutView).
-enum PRType: String {
-    case heaviestWeight = "Heaviest Set"
-    case bestVolume     = "Best Volume"
-    case mostReps       = "Most Reps"
-    case estimated1RM   = "Est. 1RM"
-}
-
-/// A data point for lift progression charts: one dot per workout session.
-struct LiftProgressionPoint: Identifiable {
-    let id = UUID()
-    let date: Date
-    let maxWeight: Double
-}
-
-/// Weekly volume for the volume trends bar chart.
-struct WeeklyVolume: Identifiable {
-    let id = UUID()
-    let weekStart: Date
-    let totalVolume: Double
-    
-    /// Short label like "Jan 6" for the x-axis.
-    var label: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM d"
-        return formatter.string(from: weekStart)
-    }
-}
-
-// MARK: - SetDisplayRow
-
-/// Represents either a regular set or a grouped super set block in the sets table.
-enum SetDisplayRow: Identifiable {
-    case regular(WorkoutSet)
-    case superSet(groupId: String, setNumber: Int, sets: [WorkoutSet])
-
-    var id: String {
-        switch self {
-        case .regular(let set):
-            return "regular-\(set.timestamp.timeIntervalSince1970)"
-        case .superSet(let groupId, _, _):
-            return "ss-\(groupId)"
-        }
-    }
-}
 
 // MARK: - WorkoutManager
 
@@ -159,9 +85,9 @@ final class WorkoutManager {
 
     /// Per-lift reps input keyed by lift name.
     var superSetReps: [String: String] = [:]
-    
+
     // MARK: - Initialization
-    
+
     /// Sets up the manager with a SwiftData context and loads initial state.
     ///
     /// LEARNING NOTE:
@@ -171,30 +97,31 @@ final class WorkoutManager {
     func setup(context: ModelContext) {
         self.modelContext = context
         seedDatabaseIfNeeded()
+        seedSplitsIfNeeded()
         loadActiveWorkout()
         loadRecentLifts()
         loadUserProfile()
     }
-    
+
     // MARK: - Workout Lifecycle
-    
+
     /// Start a new workout session.
     func startWorkout() {
         guard let context = modelContext else { return }
-        
+
         let workout = Workout()
         context.insert(workout)
         activeWorkout = workout
-        
+
         selectedLift = nil
         weightInput = ""
         repsInput = ""
         previousSets = []
         previousWorkoutDate = nil
-        
+
         save()
     }
-    
+
     /// End the current workout.
     /// - Parameter notes: Optional user notes.
     /// - Returns: The completed workout (for showing the summary).
@@ -219,15 +146,19 @@ final class WorkoutManager {
         save()
         return completed
     }
-    
+
     // MARK: - Set Logging
-    
+
     /// Log a new set for the currently selected lift.
     /// Auto-calculates set number based on existing sets for this lift.
     ///
     /// - Returns: true if logged successfully, false if inputs were invalid.
     @discardableResult
-    func logSet() -> Bool {
+    func logSet(
+        isWarmUp: Bool = false,
+        toFailure: Bool = false,
+        intensityTechnique: IntensityTechnique? = nil
+    ) -> Bool {
         guard let context = modelContext,
               let workout = activeWorkout,
               let lift = selectedLift,
@@ -236,41 +167,37 @@ final class WorkoutManager {
               weight > 0,
               reps > 0
         else { return false }
-        
-        // LEARNING NOTE:
-        // Auto-numbering: count existing sets of this lift in the current
-        // workout, then add 1. User never manually enters set numbers.
+
         let existingSets = workout.sets.filter {
             $0.liftDefinition?.name == lift.name
         }
         let nextSetNumber = existingSets.count + 1
-        
+
         let newSet = WorkoutSet(
             weight: weight,
             reps: reps,
             setNumber: nextSetNumber,
             workout: workout,
-            liftDefinition: lift
+            liftDefinition: lift,
+            isWarmUp: isWarmUp,
+            toFailure: toFailure,
+            intensityTechnique: intensityTechnique
         )
-        
+
         context.insert(newSet)
         lift.lastUsedDate = Date()
-        
-        // LEARNING NOTE:
-        // After logging a set, check if it beats any existing personal records.
-        // We do this BEFORE clearing repsInput so we still have the values.
-        // The PR check runs against all completed (non-active) workout sets,
-        // so the current active workout's sets are compared against history.
-        checkForNewPR(weight: weight, reps: reps, lift: lift)
-        
-        // Clear only reps — weight persists for convenience
-        // (bodybuilders often repeat the same weight across sets)
+
+        // Only check PRs for working sets, not warm-ups
+        if !isWarmUp {
+            checkForNewPR(weight: weight, reps: reps, lift: lift)
+        }
+
         repsInput = ""
-        
+
         save()
         return true
     }
-    
+
     /// Delete a set and renumber remaining sets.
     func deleteSet(_ workoutSet: WorkoutSet) {
         guard let context = modelContext,
@@ -296,9 +223,9 @@ final class WorkoutManager {
 
         save()
     }
-    
+
     // MARK: - Lift Selection
-    
+
     /// Select a lift for the current workout.
     /// In super set mode, toggles the lift in the SS group instead.
     /// Auto-starts a workout if none is active.
@@ -328,9 +255,9 @@ final class WorkoutManager {
         guard let selected = selectedLift else { return nil }
         return recentLifts.firstIndex(where: { $0.name == selected.name })
     }
-    
+
     // MARK: - Comparison Data
-    
+
     /// Load previous workout data for a specific lift.
     /// Finds the most recent COMPLETED time this lift was performed.
     ///
@@ -345,9 +272,9 @@ final class WorkoutManager {
             previousWorkoutDate = nil
             return
         }
-        
+
         let liftName = lift.name
-        
+
         // LEARNING NOTE:
         // FetchDescriptor with #Predicate creates a type-safe database query.
         // We want WorkoutSets where the lift name matches AND the workout
@@ -359,45 +286,45 @@ final class WorkoutManager {
             },
             sortBy: [SortDescriptor(\.timestamp, order: .reverse)]
         )
-        
+
         do {
             let allPastSets = try context.fetch(descriptor)
-            
+
             guard let mostRecentSet = allPastSets.first,
                   let mostRecentWorkout = mostRecentSet.workout else {
                 previousSets = []
                 previousWorkoutDate = nil
                 return
             }
-            
+
             // Get all sets from that specific workout for this lift
             previousSets = allPastSets
                 .filter { $0.workout?.date == mostRecentWorkout.date }
                 .sorted { $0.setNumber < $1.setNumber }
-            
+
             previousWorkoutDate = mostRecentWorkout.date
-            
+
         } catch {
             print("Error fetching comparison data: \(error)")
             previousSets = []
             previousWorkoutDate = nil
         }
     }
-    
+
     // MARK: - Current Workout Sets
-    
+
     /// All sets for the selected lift in the active workout.
     var currentLiftSets: [WorkoutSet] {
         guard let workout = activeWorkout,
               let lift = selectedLift else { return [] }
-        
+
         return workout.sets
             .filter { $0.liftDefinition?.name == lift.name }
             .sorted { $0.setNumber < $1.setNumber }
     }
-    
+
     // MARK: - Recent Lifts Management
-    
+
     /// Insert a new lift at the front of the ring (max 10). Does NOT reorder existing lifts.
     func addToRecentLifts(_ lift: LiftDefinition) {
         recentLifts.insert(lift, at: 0)
@@ -405,22 +332,22 @@ final class WorkoutManager {
             recentLifts = Array(recentLifts.prefix(10))
         }
     }
-    
+
     // MARK: - Data Loading
-    
+
     /// Load active workout from database (resume in-progress workout on app launch).
     private func loadActiveWorkout() {
         guard let context = modelContext else { return }
-        
+
         var descriptor = FetchDescriptor<Workout>(
             predicate: #Predicate<Workout> { $0.isActive == true }
         )
         descriptor.fetchLimit = 1
-        
+
         do {
             let results = try context.fetch(descriptor)
             activeWorkout = results.first
-            
+
             if let workout = activeWorkout,
                let lastSet = workout.sets.sorted(by: { $0.timestamp > $1.timestamp }).first,
                let lastLift = lastSet.liftDefinition {
@@ -430,7 +357,7 @@ final class WorkoutManager {
             print("Error loading active workout: \(error)")
         }
     }
-    
+
     /// Load the 10 most recently used lifts for circle buttons.
     private func loadRecentLifts() {
         guard let context = modelContext else { return }
@@ -440,20 +367,20 @@ final class WorkoutManager {
             sortBy: [SortDescriptor(\.lastUsedDate, order: .reverse)]
         )
         descriptor.fetchLimit = 10
-        
+
         do {
             recentLifts = try context.fetch(descriptor)
         } catch {
             print("Error loading recent lifts: \(error)")
         }
     }
-    
+
     /// Load or create the user's profile.
     private func loadUserProfile() {
         guard let context = modelContext else { return }
-        
+
         let descriptor = FetchDescriptor<UserProfile>()
-        
+
         do {
             let profiles = try context.fetch(descriptor)
             if let existing = profiles.first {
@@ -468,22 +395,22 @@ final class WorkoutManager {
             print("Error loading user profile: \(error)")
         }
     }
-    
+
     // MARK: - Database Seeding
-    
+
     /// Populate database with pre-loaded exercises on first launch.
     private func seedDatabaseIfNeeded() {
         guard let context = modelContext else { return }
-        
+
         let descriptor = FetchDescriptor<LiftDefinition>()
-        
+
         do {
             let existingLifts = try context.fetch(descriptor)
             guard existingLifts.isEmpty else {
                 hasSeededDatabase = true
                 return
             }
-            
+
             var totalInserted = 0
             for (muscleGroup, liftNames) in PreloadedLifts.catalog {
                 for name in liftNames {
@@ -496,144 +423,17 @@ final class WorkoutManager {
                     totalInserted += 1
                 }
             }
-            
+
             try context.save()
             hasSeededDatabase = true
-            
+
         } catch {
             print("Error seeding database: \(error)")
         }
     }
-    
-    // MARK: - Workout Summary Text
-    
-    /// Generate plain text summary for sharing.
-    func generateSummaryText(for workout: Workout) -> String {
-        var text = "🏋️ Super Sets Workout Summary\n"
-        text += "━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        text += "📅 \(workout.fullFormattedDate)\n"
-        text += "⏱ Duration: \(workout.formattedDuration)\n"
-        text += "💪 \(workout.totalExercises) exercises · \(workout.totalSets) total sets\n"
-        
-        if let notes = workout.notes, !notes.isEmpty {
-            text += "📝 \(notes)\n"
-        }
-        
-        text += "\n"
-        
-        for group in workout.setsGroupedByLift {
-            let color = group.lift.muscleGroup.displayName
-            text += "▸ \(group.lift.name) (\(color))\n"
-            
-            for set in group.sets {
-                text += "   Set \(set.setNumber): \(set.formattedDisplay)\n"
-            }
-            text += "\n"
-        }
-        
-        text += "━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        text += "Tracked with Super Sets 💪"
-        
-        return text
-    }
-    
-    // MARK: - Personal Records
-    
-    /// Calculate personal records for EVERY lift the user has ever performed.
-    /// Returns an array of PersonalRecord structs, one per unique lift.
-    ///
-    /// LEARNING NOTE:
-    /// This is a "compute on read" approach — we calculate PRs fresh each time
-    /// the Progress tab appears, rather than caching them. For most users (even
-    /// with hundreds of workouts), this is fast enough because SwiftData queries
-    /// are backed by SQLite. If performance ever becomes an issue, we could add
-    /// a cached @Model for PRs and update them incrementally on each logSet().
-    func calculateAllPRs() -> [PersonalRecord] {
-        guard let context = modelContext else { return [] }
-        
-        // Fetch ALL completed sets (from non-active workouts)
-        let descriptor = FetchDescriptor<WorkoutSet>(
-            predicate: #Predicate<WorkoutSet> { workoutSet in
-                workoutSet.workout?.isActive == false
-            }
-        )
-        
-        do {
-            let allSets = try context.fetch(descriptor)
-            
-            // LEARNING NOTE:
-            // Dictionary(grouping:by:) is a powerful Swift standard library method.
-            // It takes a collection and a key function, and returns a dictionary
-            // where each key maps to an array of matching elements.
-            // Here we group all sets by their lift name.
-            let grouped = Dictionary(grouping: allSets) { $0.liftDefinition?.name ?? "Unknown" }
-            
-            var records: [PersonalRecord] = []
-            
-            for (liftName, sets) in grouped {
-                guard let firstSet = sets.first,
-                      let lift = firstSet.liftDefinition else { continue }
-                
-                var pr = PersonalRecord(
-                    liftName: liftName,
-                    muscleGroup: lift.muscleGroup
-                )
-                
-                for set in sets {
-                    // Heaviest single set
-                    if set.weight > pr.heaviestWeight {
-                        pr.heaviestWeight = set.weight
-                        pr.heaviestWeightDate = set.timestamp
-                    }
-                    
-                    // Best volume set (weight × reps)
-                    let volume = set.weight * Double(set.reps)
-                    if volume > pr.bestVolume {
-                        pr.bestVolume = volume
-                        pr.bestVolumeDate = set.timestamp
-                    }
-                    
-                    // Most reps in a single set
-                    if set.reps > pr.mostReps {
-                        pr.mostReps = set.reps
-                        pr.mostRepsDate = set.timestamp
-                    }
-                    
-                    // Estimated 1RM (Epley formula)
-                    // LEARNING NOTE:
-                    // The Epley formula: weight × (1 + reps / 30)
-                    // This estimates the maximum weight you could lift for
-                    // exactly 1 rep, based on a set at a given weight and rep count.
-                    // It's most accurate for sets of 2-10 reps.
-                    let epley1RM: Double
-                    if set.reps == 1 {
-                        epley1RM = set.weight
-                    } else {
-                        epley1RM = set.weight * (1.0 + Double(set.reps) / 30.0)
-                    }
-                    if epley1RM > pr.estimated1RM {
-                        pr.estimated1RM = epley1RM
-                        pr.estimated1RMDate = set.timestamp
-                    }
-                }
-                
-                records.append(pr)
-            }
-            
-            // Sort by muscle group, then lift name for consistent display
-            return records.sorted {
-                if $0.muscleGroup.displayName == $1.muscleGroup.displayName {
-                    return $0.liftName < $1.liftName
-                }
-                return $0.muscleGroup.displayName < $1.muscleGroup.displayName
-            }
-            
-        } catch {
-            print("Error calculating PRs: \(error)")
-            return []
-        }
-    }
-    
+
+    // MARK: - Personal Record Detection
+
     /// Check if a just-logged set breaks any existing PRs for this lift.
     /// If so, sets `newPRAlert` to show the 🏆 badge in WorkoutView.
     ///
@@ -643,23 +443,23 @@ final class WorkoutManager {
     /// and we bail early if any PR is beaten (showing the most impressive one).
     private func checkForNewPR(weight: Double, reps: Int, lift: LiftDefinition) {
         guard let context = modelContext else { return }
-        
+
         let liftName = lift.name
-        
+
         let descriptor = FetchDescriptor<WorkoutSet>(
             predicate: #Predicate<WorkoutSet> { workoutSet in
                 workoutSet.liftDefinition?.name == liftName &&
                 workoutSet.workout?.isActive == false
             }
         )
-        
+
         do {
             let historicalSets = try context.fetch(descriptor)
             guard !historicalSets.isEmpty else { return } // First time = no PR to beat
-            
+
             let newVolume = weight * Double(reps)
             let newEpley = reps == 1 ? weight : weight * (1.0 + Double(reps) / 30.0)
-            
+
             // Find existing maxima
             let maxWeight = historicalSets.map(\.weight).max() ?? 0
             let maxVolume = historicalSets.map { $0.weight * Double($0.reps) }.max() ?? 0
@@ -667,7 +467,7 @@ final class WorkoutManager {
             let maxEpley = historicalSets.map { set -> Double in
                 set.reps == 1 ? set.weight : set.weight * (1.0 + Double(set.reps) / 30.0)
             }.max() ?? 0
-            
+
             // Check in order of impressiveness: 1RM > weight > volume > reps
             if newEpley > maxEpley {
                 newPRAlert = .estimated1RM
@@ -678,240 +478,12 @@ final class WorkoutManager {
             } else if reps > maxReps {
                 newPRAlert = .mostReps
             }
-            
+
         } catch {
             print("Error checking PRs: \(error)")
         }
     }
-    
-    // MARK: - Lift Progression Data
-    
-    /// Get progression data points for a specific lift (for line charts).
-    /// Returns one data point per workout session: the max weight used that day.
-    ///
-    /// LEARNING NOTE:
-    /// We group completed sets by their workout date, then take the max weight
-    /// from each group. This gives us a clean "max weight over time" trend line.
-    func liftProgression(for liftName: String) -> [LiftProgressionPoint] {
-        guard let context = modelContext else { return [] }
-        
-        let descriptor = FetchDescriptor<WorkoutSet>(
-            predicate: #Predicate<WorkoutSet> { workoutSet in
-                workoutSet.liftDefinition?.name == liftName &&
-                workoutSet.workout?.isActive == false
-            },
-            sortBy: [SortDescriptor(\.timestamp)]
-        )
-        
-        do {
-            let sets = try context.fetch(descriptor)
-            
-            // Group by workout (using workout date as key)
-            // LEARNING NOTE:
-            // We use Calendar.startOfDay() to normalize all timestamps from the
-            // same workout to the same date key. Without this, sets logged at
-            // slightly different times would be treated as separate sessions.
-            let calendar = Calendar.current
-            let grouped = Dictionary(grouping: sets) { set in
-                calendar.startOfDay(for: set.workout?.date ?? set.timestamp)
-            }
-            
-            return grouped.map { date, daySets in
-                let maxWeight = daySets.map(\.weight).max() ?? 0
-                return LiftProgressionPoint(date: date, maxWeight: maxWeight)
-            }
-            .sorted { $0.date < $1.date }
-            
-        } catch {
-            print("Error fetching lift progression: \(error)")
-            return []
-        }
-    }
-    
-    // MARK: - Volume Trends
-    
-    /// Calculate total weekly volume (weight × reps) for the last 8 weeks.
-    /// Used for the volume trends bar chart on the Progress tab.
-    func weeklyVolumeTrends() -> [WeeklyVolume] {
-        guard let context = modelContext else { return [] }
-        
-        let calendar = Calendar.current
-        
-        // LEARNING NOTE:
-        // date(byAdding: .weekOfYear, value: -8) goes back 8 weeks from today.
-        // We use Calendar for all date math because it correctly handles
-        // daylight saving, month boundaries, and leap years.
-        guard let eightWeeksAgo = calendar.date(byAdding: .weekOfYear, value: -8, to: Date()) else {
-            return []
-        }
-        
-        let descriptor = FetchDescriptor<WorkoutSet>(
-            predicate: #Predicate<WorkoutSet> { workoutSet in
-                workoutSet.workout?.isActive == false &&
-                workoutSet.timestamp >= eightWeeksAgo
-            }
-        )
-        
-        do {
-            let sets = try context.fetch(descriptor)
-            
-            // Group by week
-            let grouped = Dictionary(grouping: sets) { set -> Date in
-                // Find the Monday of this set's week
-                let components = calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: set.timestamp)
-                return calendar.date(from: components) ?? set.timestamp
-            }
-            
-            // Build volume for each week
-            var weeks: [WeeklyVolume] = []
-            for i in 0..<8 {
-                guard let weekStart = calendar.date(byAdding: .weekOfYear, value: -7 + i, to: Date()) else { continue }
-                let normalizedStart = calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: weekStart)
-                let weekKey = calendar.date(from: normalizedStart) ?? weekStart
-                
-                let weekSets = grouped[weekKey] ?? []
-                let totalVolume = weekSets.reduce(0.0) { $0 + $1.weight * Double($1.reps) }
-                
-                weeks.append(WeeklyVolume(weekStart: weekKey, totalVolume: totalVolume))
-            }
-            
-            return weeks
-            
-        } catch {
-            print("Error calculating weekly volume: \(error)")
-            return []
-        }
-    }
-    
-    // MARK: - Workout Stats Summary
-    
-    /// Total number of completed workouts.
-    func totalCompletedWorkouts() -> Int {
-        guard let context = modelContext else { return 0 }
-        let descriptor = FetchDescriptor<Workout>(
-            predicate: #Predicate<Workout> { $0.isActive == false }
-        )
-        return (try? context.fetchCount(descriptor)) ?? 0
-    }
-    
-    /// Number of completed workouts this calendar week (Monday–Sunday).
-    func workoutsThisWeek() -> Int {
-        guard let context = modelContext else { return 0 }
-        let calendar = Calendar.current
-        let now = Date()
-        guard let weekStart = calendar.dateInterval(of: .weekOfYear, for: now)?.start else { return 0 }
-        
-        let descriptor = FetchDescriptor<Workout>(
-            predicate: #Predicate<Workout> { workout in
-                workout.isActive == false &&
-                workout.date >= weekStart
-            }
-        )
-        return (try? context.fetchCount(descriptor)) ?? 0
-    }
-    
-    /// Average workout duration in minutes across all completed workouts.
-    func averageWorkoutDuration() -> Int {
-        guard let context = modelContext else { return 0 }
-        let descriptor = FetchDescriptor<Workout>(
-            predicate: #Predicate<Workout> { $0.isActive == false }
-        )
-        
-        do {
-            let workouts = try context.fetch(descriptor)
-            guard !workouts.isEmpty else { return 0 }
-            
-            let totalSeconds = workouts.reduce(0.0) { $0 + $1.durationSeconds }
-            return Int(totalSeconds / Double(workouts.count) / 60.0)
-        } catch {
-            return 0
-        }
-    }
-    
-    /// Total sets logged across all completed workouts.
-    func totalSetsAllTime() -> Int {
-        guard let context = modelContext else { return 0 }
-        let descriptor = FetchDescriptor<WorkoutSet>(
-            predicate: #Predicate<WorkoutSet> { $0.workout?.isActive == false }
-        )
-        return (try? context.fetchCount(descriptor)) ?? 0
-    }
-    
-    // MARK: - Body Weight Tracking
-    
-    /// Log a new body weight entry.
-    /// - Parameter weight: The weight value in the user's preferred unit.
-    func logWeight(_ weight: Double) {
-        guard let context = modelContext else { return }
-        let entry = WeightEntry(weight: weight)
-        context.insert(entry)
-        save()
-    }
-    
-    /// Fetch weight entries for the last N days (default 30).
-    func weightEntries(days: Int = 30) -> [WeightEntry] {
-        guard let context = modelContext else { return [] }
-        
-        let calendar = Calendar.current
-        guard let startDate = calendar.date(byAdding: .day, value: -days, to: Date()) else {
-            return []
-        }
-        
-        let descriptor = FetchDescriptor<WeightEntry>(
-            predicate: #Predicate<WeightEntry> { $0.date >= startDate },
-            sortBy: [SortDescriptor(\.date)]
-        )
-        
-        return (try? context.fetch(descriptor)) ?? []
-    }
-    
-    /// The most recent weight entry, or nil if none exist.
-    func latestWeight() -> WeightEntry? {
-        guard let context = modelContext else { return nil }
-        var descriptor = FetchDescriptor<WeightEntry>(
-            sortBy: [SortDescriptor(\.date, order: .reverse)]
-        )
-        descriptor.fetchLimit = 1
-        return (try? context.fetch(descriptor))?.first
-    }
-    
-    // MARK: - Calorie Estimates
-    
-    /// Estimated calories burned during a workout using MET formula.
-    ///
-    /// LEARNING NOTE:
-    /// MET (Metabolic Equivalent of Task) is a standard measure of exercise intensity.
-    /// MET × bodyWeight(kg) × duration(hours) = estimated calories burned.
-    /// Resistance training ≈ 5.5 METs (moderate to vigorous weight lifting).
-    /// For comparison: walking ≈ 3.5 METs, running ≈ 9.8 METs.
-    func workoutCalories(for workout: Workout) -> Int {
-        guard let profile = userProfile else { return 0 }
-        let met = 5.5  // MET value for resistance training
-        let durationHours = workout.durationSeconds / 3600.0
-        return Int(met * profile.bodyWeightKg * durationHours)
-    }
-    
-    /// Total estimated workout calories burned this week.
-    func weeklyWorkoutCalories() -> Int {
-        guard let context = modelContext else { return 0 }
-        let calendar = Calendar.current
-        guard let weekStart = calendar.dateInterval(of: .weekOfYear, for: Date())?.start else { return 0 }
-        
-        let descriptor = FetchDescriptor<Workout>(
-            predicate: #Predicate<Workout> { workout in
-                workout.isActive == false &&
-                workout.date >= weekStart
-            }
-        )
-        
-        do {
-            let workouts = try context.fetch(descriptor)
-            return workouts.reduce(0) { $0 + workoutCalories(for: $1) }
-        } catch {
-            return 0
-        }
-    }
-    
+
     // MARK: - Super Set Methods
 
     /// Enter super set mode, seeding the group with the currently selected lift.
@@ -1090,10 +662,100 @@ final class WorkoutManager {
         return rows
     }
 
+    // MARK: - Workout Splits
+
+    /// Load a workout split — adds all lifts to the ring in order.
+    func loadSplit(_ split: WorkoutSplit) {
+        guard let context = modelContext else { return }
+
+        for liftName in split.liftNames {
+            // Try to find the lift in the database first
+            let descriptor = FetchDescriptor<LiftDefinition>(
+                predicate: #Predicate<LiftDefinition> { $0.name == liftName }
+            )
+
+            if let existing = try? context.fetch(descriptor).first {
+                if !recentLifts.contains(where: { $0.name == existing.name }) {
+                    addToRecentLifts(existing)
+                }
+            } else {
+                // If not in DB (catalog-only lift), check PreloadedLifts
+                for (group, names) in PreloadedLifts.catalog {
+                    if names.contains(liftName) {
+                        let lift = LiftDefinition(name: liftName, muscleGroup: group, isCustom: false)
+                        context.insert(lift)
+                        addToRecentLifts(lift)
+                        break
+                    }
+                }
+            }
+        }
+
+        // Select the first lift
+        if let first = recentLifts.first {
+            selectLift(first)
+        }
+        save()
+    }
+
+    /// Save the current workout's lifts as a new split template.
+    func saveSplitFromWorkout(_ workout: Workout, name: String) {
+        guard let context = modelContext else { return }
+
+        let liftNames = workout.setsGroupedByLift.map { $0.lift.name }
+        guard !liftNames.isEmpty else { return }
+
+        let split = WorkoutSplit(name: name, liftNames: liftNames)
+        context.insert(split)
+        save()
+    }
+
+    /// Seed preset workout splits if none exist.
+    func seedSplitsIfNeeded() {
+        guard let context = modelContext else { return }
+
+        let descriptor = FetchDescriptor<WorkoutSplit>()
+        let existing = (try? context.fetch(descriptor)) ?? []
+        guard existing.isEmpty else { return }
+
+        let presets: [(String, [String])] = [
+            ("Push Day", [
+                "Flat Barbell Bench Press", "Incline Dumbbell Press",
+                "Cable Chest Fly", "Overhead Press", "Lateral Raises",
+                "Tricep Pushdowns"
+            ]),
+            ("Pull Day", [
+                "Barbell Rows", "Lat Pulldowns", "Seated Cable Rows",
+                "Face Pulls", "Barbell Curls", "Hammer Curls"
+            ]),
+            ("Leg Day", [
+                "Barbell Back Squat", "Romanian Deadlift", "Leg Press",
+                "Leg Curls", "Leg Extensions", "Standing Calf Raises"
+            ]),
+            ("Upper Body", [
+                "Flat Barbell Bench Press", "Barbell Rows",
+                "Overhead Press", "Lat Pulldowns",
+                "Barbell Curls", "Tricep Pushdowns"
+            ]),
+            ("Lower Body", [
+                "Barbell Back Squat", "Romanian Deadlift",
+                "Leg Press", "Leg Curls",
+                "Standing Calf Raises", "Hip Thrusts"
+            ])
+        ]
+
+        for (name, lifts) in presets {
+            let split = WorkoutSplit(name: name, liftNames: lifts, isPreset: true)
+            context.insert(split)
+        }
+
+        save()
+    }
+
     // MARK: - Persistence
 
     /// Save pending changes to the database.
-    private func save() {
+    func save() {
         guard let context = modelContext else { return }
         do {
             try context.save()

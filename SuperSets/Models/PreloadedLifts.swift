@@ -36,7 +36,9 @@ struct PreloadedLifts {
             "Cable Crossover",
             "Pec Deck Machine",
             "Push-ups",
-            "Chest Dips"
+            "Chest Dips",
+            "Machine Chest Press",
+            "Incline Cable Flye"
         ],
         
         .lats: [
@@ -47,7 +49,10 @@ struct PreloadedLifts {
             "Dumbbell Single-Arm Row",
             "Seated Cable Row",
             "T-Bar Row",
-            "Straight-Arm Pulldown"
+            "Straight-Arm Pulldown",
+            "Machine Row",
+            "Close-Grip Lat Pulldown",
+            "Meadows Row"
         ],
         
         .lowerBack: [
@@ -86,7 +91,9 @@ struct PreloadedLifts {
             "Reverse Flyes",
             "Cable Lateral Raise",
             "Machine Shoulder Press",
-            "Upright Cable Row"
+            "Upright Cable Row",
+            "Machine Lateral Raise",
+            "Rear Delt Machine"
         ],
         
         .abs: [
@@ -109,7 +116,9 @@ struct PreloadedLifts {
             "Bulgarian Split Squat",
             "Goblet Squat",
             "Walking Lunges",
-            "Sissy Squat"
+            "Sissy Squat",
+            "Pendulum Squat",
+            "Belt Squat"
         ],
         
         .legBiceps: [
@@ -119,7 +128,8 @@ struct PreloadedLifts {
             "Stiff-Leg Deadlift",
             "Nordic Hamstring Curl",
             "Glute-Ham Raise",
-            "Cable Leg Curl"
+            "Cable Leg Curl",
+            "Single-Leg Lying Curl"
         ],
         
         .glutes: [
@@ -150,7 +160,9 @@ struct PreloadedLifts {
             "Cable Curl",
             "Incline Dumbbell Curl",
             "EZ-Bar Curl",
-            "Spider Curl"
+            "Spider Curl",
+            "Machine Curl",
+            "Bayesian Curl"
         ],
         
         .triceps: [
@@ -161,7 +173,9 @@ struct PreloadedLifts {
             "Dumbbell Kickback",
             "Dips (Tricep)",
             "Cable Overhead Extension",
-            "Diamond Push-ups"
+            "Diamond Push-ups",
+            "Machine Tricep Extension",
+            "JM Press"
         ]
     ]
     

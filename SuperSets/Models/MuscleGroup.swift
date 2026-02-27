@@ -52,7 +52,7 @@ enum MuscleGroup: String, CaseIterable, Codable, Identifiable {
         case .shoulders: return "Shoulders"
         case .abs:       return "Abs"
         case .quads:     return "Quads"
-        case .legBiceps: return "Leg Biceps"
+        case .legBiceps: return "Hamstrings"
         case .glutes:    return "Glutes"
         case .calves:    return "Calves"
         case .biceps:    return "Biceps"

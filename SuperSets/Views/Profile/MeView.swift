@@ -1,18 +1,18 @@
-// ProfileView.swift
+// MeView.swift
 // Super Sets — The Workout Tracker
 //
-// User profile with personal info, measurements, preferences, and RMR.
+// Personal profile: photo, name, age, sex, measurements, RMR/TDEE.
+// Navigates to PreferencesView via gear button.
 //
-// v2.0 — 10x LIQUID GLASS: Deep glass photo frame, deep glass RMR orb,
-// glass gem section header icons. All .glassCard() auto-upgraded to slabs.
+// Liquid Glass: Deep glass photo frame, deep glass RMR orb,
+// glass gem section header icons, glass slab cards.
 
 import SwiftUI
 import PhotosUI
-import SwiftData
 
-// MARK: - ProfileView
+// MARK: - MeView
 
-struct ProfileView: View {
+struct MeView: View {
 
     // MARK: Dependencies
 
@@ -25,20 +25,32 @@ struct ProfileView: View {
     // MARK: Body
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 16) {
-                profileHeader
-                personalInfoSection
-                measurementsSection
-                preferencesSection
-                rmrSection
-                Spacer().frame(height: 40)
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 16) {
+                    profileHeader
+                    personalInfoSection
+                    measurementsSection
+                    rmrSection
+                    Spacer().frame(height: 40)
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 8)
+            .scrollIndicators(.hidden)
+            .scrollDismissesKeyboard(.interactively)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink {
+                        PreferencesView(workoutManager: workoutManager)
+                    } label: {
+                        Image(systemName: "gearshape.fill")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(AppColors.subtleText)
+                    }
+                }
+            }
         }
-        .scrollIndicators(.hidden)
-        .scrollDismissesKeyboard(.interactively)
     }
 
     // MARK: - Profile Header
@@ -181,76 +193,6 @@ struct ProfileView: View {
         .glassCard()
     }
 
-    // MARK: - Preferences
-
-    private var preferencesSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            sectionHeader("Preferences", icon: "gearshape.fill")
-
-            if let profile = workoutManager.userProfile {
-                HStack {
-                    Text("Weight Unit")
-                        .font(.subheadline)
-                        .foregroundStyle(AppColors.subtleText)
-                    Spacer()
-                    Picker("", selection: Binding(
-                        get: { profile.preferredUnit },
-                        set: { profile.preferredUnit = $0 }
-                    )) {
-                        ForEach(WeightUnit.allCases, id: \.self) { unit in
-                            Text(unit.rawValue).tag(unit)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .frame(width: 140)
-                }
-
-                Divider().background(AppColors.divider)
-
-                HStack {
-                    Text("Theme")
-                        .font(.subheadline)
-                        .foregroundStyle(AppColors.subtleText)
-                    Spacer()
-                    Picker("", selection: Binding<AppThemeOption>(
-                        get: { profile.preferredTheme },
-                        set: { newTheme in
-                            withAnimation(AppAnimation.smooth) {
-                                profile.preferredTheme = newTheme
-                            }
-                        }
-                    )) {
-                        ForEach(AppThemeOption.allCases, id: \.self) { theme in
-                            Text(theme.rawValue).tag(theme)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .frame(width: 140)
-                }
-
-                Divider().background(AppColors.divider)
-
-                HStack {
-                    Text("Input Method")
-                        .font(.subheadline)
-                        .foregroundStyle(AppColors.subtleText)
-                    Spacer()
-                    Picker("", selection: Binding<Bool>(
-                        get: { profile.useScrollWheelInput },
-                        set: { profile.useScrollWheelInput = $0 }
-                    )) {
-                        Text("Wheels").tag(true)
-                        Text("Keyboard").tag(false)
-                    }
-                    .pickerStyle(.segmented)
-                    .frame(width: 160)
-                }
-            }
-        }
-        .padding(16)
-        .glassCard()
-    }
-
     // MARK: - RMR Section
 
     /// Resting Metabolic Rate displayed in a deep glass orb.
@@ -259,7 +201,6 @@ struct ProfileView: View {
             sectionHeader("Resting Metabolic Rate", icon: "flame.fill")
 
             if let profile = workoutManager.userProfile {
-                // RMR value in a deep glass rounded rect
                 VStack(spacing: 4) {
                     Text("\(profile.restingMetabolicRate)")
                         .font(.system(size: 48, weight: .bold, design: .rounded).monospacedDigit())
@@ -285,7 +226,6 @@ struct ProfileView: View {
 
     // MARK: - Reusable Components
 
-    /// Section header with a glass gem icon — gold for 60-30-10 secondary tone.
     private func sectionHeader(_ title: String, icon: String) -> some View {
         HStack(spacing: 8) {
             Image(systemName: icon)

@@ -65,8 +65,8 @@ struct ContentView: View {
                     .appBackground()
             }
             
-            Tab("Profile", systemImage: "person.fill") {
-                ProfileView(workoutManager: workoutManager)
+            Tab("Me", systemImage: "person.fill") {
+                MeView(workoutManager: workoutManager)
                     .appBackground()
             }
         }
@@ -83,6 +83,10 @@ struct ContentView: View {
             // to initialize WorkoutManager once. The flag prevents re-init.
             if !hasAppeared {
                 workoutManager.setup(context: modelContext)
+                // Sync timer default from user profile
+                if let duration = workoutManager.userProfile?.defaultRestTimerDuration {
+                    timerManager.setDuration(duration)
+                }
                 hasAppeared = true
             }
         }

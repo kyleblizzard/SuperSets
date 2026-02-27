@@ -23,17 +23,27 @@ import SwiftData
 
 @main
 struct SuperSetsApp: App {
-    
+
+    let container: ModelContainer
+
+    init() {
+        let schema = Schema(versionedSchema: SchemaV1.self)
+        let config = ModelConfiguration()
+        do {
+            container = try ModelContainer(
+                for: schema,
+                migrationPlan: SuperSetsMigrationPlan.self,
+                configurations: config
+            )
+        } catch {
+            fatalError("Failed to create ModelContainer: \(error)")
+        }
+    }
+
     var body: some Scene {
         WindowGroup {
             ContentView()
         }
-        .modelContainer(for: [
-            LiftDefinition.self,
-            Workout.self,
-            WorkoutSet.self,
-            UserProfile.self,
-            WeightEntry.self
-        ])
+        .modelContainer(container)
     }
 }
