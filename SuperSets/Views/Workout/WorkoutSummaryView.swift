@@ -15,6 +15,8 @@ struct WorkoutSummaryView: View {
     let workout: Workout
     let workoutManager: WorkoutManager
     @Environment(\.dismiss) private var dismiss
+    @State private var showingSaveAsSplit = false
+    @State private var splitName = ""
 
     var body: some View {
         NavigationStack {
@@ -47,12 +49,33 @@ struct WorkoutSummaryView: View {
                 }
 
                 ToolbarItem(placement: .primaryAction) {
-                    ShareLink(
-                        item: workoutManager.generateSummaryText(for: workout)
-                    ) {
-                        Image(systemName: "square.and.arrow.up")
+                    HStack(spacing: 12) {
+                        Button {
+                            showingSaveAsSplit = true
+                        } label: {
+                            Image(systemName: "rectangle.stack.badge.plus")
+                        }
+
+                        ShareLink(
+                            item: workoutManager.generateSummaryText(for: workout)
+                        ) {
+                            Image(systemName: "square.and.arrow.up")
+                        }
                     }
                 }
+            }
+            .alert("Save as Split", isPresented: $showingSaveAsSplit) {
+                TextField("Split name", text: $splitName)
+                Button("Save") {
+                    let name = splitName.trimmingCharacters(in: .whitespaces)
+                    if !name.isEmpty {
+                        workoutManager.saveSplitFromWorkout(workout, name: name)
+                        splitName = ""
+                    }
+                }
+                Button("Cancel", role: .cancel) { splitName = "" }
+            } message: {
+                Text("Save this workout's exercises as a reusable split template.")
             }
         }
     }

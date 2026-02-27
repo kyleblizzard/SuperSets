@@ -116,6 +116,9 @@ final class UserProfile {
     /// Whether the user prefers scroll wheel (slot machine) input for weight/reps
     /// or keyboard text fields. Defaults to true (wheel).
     var useScrollWheelInput: Bool = true
+
+    /// Default rest timer countdown duration in seconds. Defaults to 90.
+    var defaultRestTimerDuration: Int = 90
     
     // MARK: Profile Photo
     

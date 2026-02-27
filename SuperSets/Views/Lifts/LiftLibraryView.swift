@@ -50,7 +50,7 @@ struct LiftLibraryView: View {
                 ToolbarItem(placement: .cancellationAction) {
                     if selectedGroup != nil {
                         Button {
-                            withAnimation(AppAnimation.spring) {
+                            AppAnimation.perform(AppAnimation.spring) {
                                 selectedGroup = nil
                                 searchText = ""
                             }
@@ -140,7 +140,7 @@ struct LiftLibraryView: View {
         let totalCount = catalogCount + customCount
 
         return Button {
-            withAnimation(AppAnimation.spring) {
+            AppAnimation.perform(AppAnimation.spring) {
                 selectedGroup = group
             }
         } label: {

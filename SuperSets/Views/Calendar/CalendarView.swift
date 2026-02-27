@@ -72,7 +72,7 @@ struct CalendarView: View {
         GlassEffectContainer(spacing: 16.0) {
             HStack {
                 Button {
-                    withAnimation(AppAnimation.spring) {
+                    AppAnimation.perform(AppAnimation.spring) {
                         displayedMonth = calendar.date(byAdding: .month, value: -1, to: displayedMonth) ?? displayedMonth
                     }
                 } label: {
@@ -97,7 +97,7 @@ struct CalendarView: View {
                 Spacer()
 
                 Button {
-                    withAnimation(AppAnimation.spring) {
+                    AppAnimation.perform(AppAnimation.spring) {
                         displayedMonth = calendar.date(byAdding: .month, value: 1, to: displayedMonth) ?? displayedMonth
                     }
                 } label: {
@@ -260,9 +260,7 @@ struct CalendarView: View {
     // MARK: - Helpers
 
     private var monthYearString: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMMM yyyy"
-        return formatter.string(from: displayedMonth)
+        Formatters.monthYear.string(from: displayedMonth)
     }
 
     private var daysInMonth: [Date?] {

@@ -199,7 +199,7 @@ struct ProgressDashboardView: View {
                 HStack {
                     Spacer()
                     Button {
-                        withAnimation(AppAnimation.quick) {
+                        AppAnimation.perform(AppAnimation.quick) {
                             weightChartDays = weightChartDays == 30 ? 90 : 30
                         }
                     } label: {
@@ -671,8 +671,6 @@ struct ProgressDashboardView: View {
     }
 
     private func shortDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM d"
-        return formatter.string(from: date)
+        Formatters.shortDate.string(from: date)
     }
 }

@@ -15,6 +15,30 @@
 import Foundation
 import SwiftData
 
+// MARK: - Intensity Technique
+
+/// Intensity techniques applied to a set.
+enum IntensityTechnique: String, CaseIterable, Codable, Identifiable {
+    case dropSet = "Drop Set"
+    case forcedReps = "Forced Reps"
+    case restPause = "Rest-Pause"
+    case negatives = "Negatives"
+    case partialReps = "Partial Reps"
+
+    var id: Self { self }
+
+    /// Short label for display in set rows.
+    var shortLabel: String {
+        switch self {
+        case .dropSet: return "DS"
+        case .forcedReps: return "FR"
+        case .restPause: return "RP"
+        case .negatives: return "NEG"
+        case .partialReps: return "PR"
+        }
+    }
+}
+
 // MARK: - WorkoutSet Model
 
 @Model
@@ -37,6 +61,23 @@ final class WorkoutSet {
     
     /// When this set was logged. Used for ordering and time-based analysis.
     var timestamp: Date
+
+    // MARK: Set Type
+
+    /// Whether this is a warm-up set. Warm-up sets don't count toward PRs.
+    var isWarmUp: Bool = false
+
+    /// Whether the lifter reached failure on this set.
+    var toFailure: Bool = false
+
+    /// Intensity technique applied (stored as raw string for SwiftData).
+    var intensityTechniqueRaw: String?
+
+    /// Type-safe access to the intensity technique.
+    var intensityTechnique: IntensityTechnique? {
+        get { intensityTechniqueRaw.flatMap { IntensityTechnique(rawValue: $0) } }
+        set { intensityTechniqueRaw = newValue?.rawValue }
+    }
 
     // MARK: Super Set Properties
 
@@ -68,18 +109,20 @@ final class WorkoutSet {
     
     // MARK: Computed Properties
     
-    /// Formatted display string: "185 × 8" (weight × reps)
+    /// Formatted display string: "185 × 8", "W 135 × 10", "185 × 8 F DS", etc.
     var formattedDisplay: String {
         let weightStr: String
-        // LEARNING NOTE:
-        // truncatingRemainder checks if a Double is a whole number.
-        // If weight is 185.0, we show "185". If it's 185.5, we show "185.5".
         if weight.truncatingRemainder(dividingBy: 1) == 0 {
             weightStr = String(format: "%.0f", weight)
         } else {
             weightStr = String(format: "%.1f", weight)
         }
-        return "\(weightStr) × \(reps)"
+        var parts: [String] = []
+        if isWarmUp { parts.append("W") }
+        parts.append("\(weightStr) × \(reps)")
+        if toFailure { parts.append("F") }
+        if let tech = intensityTechnique { parts.append(tech.shortLabel) }
+        return parts.joined(separator: " ")
     }
     
     /// Estimated one-rep max using the Brzycki formula.
@@ -105,6 +148,9 @@ final class WorkoutSet {
         setNumber: Int,
         workout: Workout,
         liftDefinition: LiftDefinition,
+        isWarmUp: Bool = false,
+        toFailure: Bool = false,
+        intensityTechnique: IntensityTechnique? = nil,
         superSetGroupId: String? = nil,
         superSetOrder: Int? = nil
     ) {
@@ -114,6 +160,9 @@ final class WorkoutSet {
         self.timestamp = Date()
         self.workout = workout
         self.liftDefinition = liftDefinition
+        self.isWarmUp = isWarmUp
+        self.toFailure = toFailure
+        self.intensityTechniqueRaw = intensityTechnique?.rawValue
         self.superSetGroupId = superSetGroupId
         self.superSetOrder = superSetOrder
     }
