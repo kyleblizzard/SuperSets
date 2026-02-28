@@ -6,6 +6,18 @@
 // and the top buttons row (Add Lift + Super Set toggle).
 
 import SwiftUI
+import QuartzCore
+
+// MARK: - Momentum Tuning
+
+private enum MomentumConfig {
+    static let decayRate: Double = 1.5               // exponential friction per second
+    static let snapThreshold: Double = 10.0          // deg/s — stop coast & snap
+    static let minimumCoastVelocity: Double = 77.0   // deg/s — below this, just snap
+    static let maxCoastDuration: TimeInterval = 8.0
+    static let frameInterval: Duration = .milliseconds(8)  // ~120fps
+    static let sampleBufferSize: Int = 2
+}
 
 // MARK: - WorkoutView + Ring
 
@@ -25,6 +37,10 @@ extension WorkoutView {
     }
 
     func snapToNearestSlot() {
+        coastingTask?.cancel()
+        coastingTask = nil
+        isCoasting = false
+
         let nearest = (ringRotation / slotAngle).rounded() * slotAngle
         let reduceMotion = UIAccessibility.isReduceMotionEnabled
         if reduceMotion {
@@ -70,6 +86,69 @@ extension WorkoutView {
         }
     }
 
+    // MARK: Momentum
+
+    /// Compute angular velocity (degrees/second) from the last two angle samples.
+    func computeAngularVelocity() -> Double {
+        guard angleSamples.count >= 2 else { return 0 }
+        let recent = angleSamples[angleSamples.count - 1]
+        let prior = angleSamples[angleSamples.count - 2]
+        let dt = recent.time - prior.time
+        guard dt > 0 else { return 0 }
+        return angleDifference(recent.angle, prior.angle) / dt
+    }
+
+    /// Coast the ring with exponential decay, firing haptics on slot crossings.
+    func startCoasting(initialVelocity: Double) {
+        coastingTask?.cancel()
+        isCoasting = true
+        coastHapticGenerator.prepare()
+        var velocity = initialVelocity
+        let startTime = CACurrentMediaTime()
+
+        coastingTask = Task { @MainActor in
+            var lastTime = CACurrentMediaTime()
+            var lastDetent = topSlotIndex
+
+            while !Task.isCancelled {
+                try? await Task.sleep(for: MomentumConfig.frameInterval)
+                guard !Task.isCancelled else { break }
+
+                let now = CACurrentMediaTime()
+                let dt = now - lastTime
+                lastTime = now
+
+                // Exponential decay
+                velocity *= exp(-MomentumConfig.decayRate * dt)
+                var t = Transaction(animation: nil)
+                t.isContinuous = true
+                withTransaction(t) {
+                    ringRotation += velocity * dt
+                }
+
+                // Haptic on slot crossing
+                let currentDetent = topSlotIndex
+                if currentDetent != lastDetent {
+                    coastHapticGenerator.impactOccurred()
+                    lastDetent = currentDetent
+                }
+
+                // Stop conditions
+                if abs(velocity) < MomentumConfig.snapThreshold {
+                    break
+                }
+                if now - startTime > MomentumConfig.maxCoastDuration {
+                    break
+                }
+            }
+
+            if !Task.isCancelled {
+                isCoasting = false
+                snapToNearestSlot()
+            }
+        }
+    }
+
     // MARK: Drag Gesture
 
     var ringDragGesture: some Gesture {
@@ -84,6 +163,13 @@ extension WorkoutView {
 
                 if !isDragging {
                     isDragging = true
+                    // Cancel any active coast immediately on re-grab
+                    coastingTask?.cancel()
+                    coastingTask = nil
+                    isCoasting = false
+                    angleSamples.removeAll()
+                    coastHapticGenerator.prepare()
+
                     dragStartRotation = ringRotation
                     dragStartAngle = startAngle
                     lastDetentSlot = topSlotIndex
@@ -96,6 +182,12 @@ extension WorkoutView {
                 let angleDeltaDeg = angleDelta * 180 / .pi
                 ringRotation = dragStartRotation + angleDeltaDeg
 
+                // Record angle sample for velocity computation
+                angleSamples.append((time: CACurrentMediaTime(), angle: ringRotation))
+                if angleSamples.count > MomentumConfig.sampleBufferSize {
+                    angleSamples.removeFirst(angleSamples.count - MomentumConfig.sampleBufferSize)
+                }
+
                 let currentDetent = topSlotIndex
                 if currentDetent != lastDetentSlot {
                     UIImpactFeedbackGenerator(style: .light).impactOccurred()
@@ -104,7 +196,15 @@ extension WorkoutView {
             }
             .onEnded { _ in
                 isDragging = false
-                snapToNearestSlot()
+
+                let velocity = computeAngularVelocity()
+                let reduceMotion = UIAccessibility.isReduceMotionEnabled
+
+                if !reduceMotion && abs(velocity) > MomentumConfig.minimumCoastVelocity {
+                    startCoasting(initialVelocity: velocity)
+                } else {
+                    snapToNearestSlot()
+                }
             }
     }
 
