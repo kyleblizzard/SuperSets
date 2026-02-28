@@ -87,6 +87,13 @@ struct WorkoutView: View {
     /// Last slot index the finger crossed (for haptic detent clicks).
     @State var lastDetentSlot: Int = 0
 
+    // MARK: Ring Momentum State
+
+    @State var coastingTask: Task<Void, Never>? = nil
+    @State var isCoasting: Bool = false
+    @State var angleSamples: [(time: TimeInterval, angle: Double)] = []
+    @State var coastHapticGenerator = UIImpactFeedbackGenerator(style: .light)
+
     // MARK: Layout State
 
     /// Available width from GeometryReader, drives responsive ring sizing.
@@ -227,6 +234,10 @@ struct WorkoutView: View {
                     }
                 }
             }
+        }
+        .onDisappear {
+            coastingTask?.cancel()
+            coastingTask = nil
         }
     }
 
