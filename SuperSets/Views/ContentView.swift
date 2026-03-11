@@ -94,6 +94,10 @@ struct ContentView: View {
                 if let duration = workoutManager.userProfile?.defaultRestTimerDuration {
                     timerManager.setDuration(duration)
                 }
+                // Register Live Activity lock screen LOG handler
+                LogSetIntent.handler = { [workoutManager] weight, reps in
+                    workoutManager.logSetFromLiveActivity(weight: weight, reps: reps)
+                }
                 hasAppeared = true
             }
         }

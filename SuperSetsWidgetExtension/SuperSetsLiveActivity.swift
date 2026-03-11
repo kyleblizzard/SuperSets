@@ -2,9 +2,12 @@
 // Super Sets — Widget Extension
 //
 // Live Activity UI for the lock screen and Dynamic Island.
-// Shows current lift, set count, last set, and elapsed workout time.
+// Lock screen: interactive weight/reps controls + LOG button.
+// Dynamic Island expanded: lift name + timer + LOG button.
+// Compact / minimal: unchanged (icon + timer).
 
 import ActivityKit
+import AppIntents
 import SwiftUI
 import WidgetKit
 
@@ -42,7 +45,6 @@ struct SuperSetsLiveActivity: Widget {
 
                 DynamicIslandExpandedRegion(.bottom) {
                     HStack(spacing: 12) {
-                        // Set count
                         HStack(spacing: 4) {
                             Image(systemName: "number")
                                 .font(.system(size: 10, weight: .bold))
@@ -53,7 +55,6 @@ struct SuperSetsLiveActivity: Widget {
 
                         Spacer()
 
-                        // Last set
                         if !context.state.lastSetDisplay.isEmpty {
                             Text(context.state.lastSetDisplay)
                                 .font(.caption.monospacedDigit().bold())
@@ -62,17 +63,16 @@ struct SuperSetsLiveActivity: Widget {
 
                         Spacer()
 
-                        // Open app button
-                        if let url = URL(string: "supersets://workout") {
-                            Link(destination: url) {
-                                Text("LOG")
-                                    .font(.system(size: 11, weight: .black, design: .rounded))
-                                    .foregroundStyle(.black)
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 6)
-                                    .background(.orange, in: Capsule())
-                            }
+                        // LOG from Dynamic Island
+                        Button(intent: LogSetIntent()) {
+                            Text("LOG")
+                                .font(.system(size: 11, weight: .black, design: .rounded))
+                                .foregroundStyle(.black)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                                .background(.orange, in: Capsule())
                         }
+                        .buttonStyle(.plain)
                     }
                 }
             } compactLeading: {
@@ -100,9 +100,11 @@ struct SuperSetsLiveActivity: Widget {
 
     @ViewBuilder
     func lockScreenView(context: ActivityViewContext<WorkoutActivityAttributes>) -> some View {
-        HStack(spacing: 12) {
-            // Left: Lift icon + name
-            VStack(alignment: .leading, spacing: 4) {
+        let increment = context.state.weightIncrement
+
+        VStack(spacing: 8) {
+            // Row 1: App name + timer
+            HStack {
                 HStack(spacing: 6) {
                     Image(systemName: "figure.strengthtraining.traditional")
                         .font(.system(size: 14, weight: .bold))
@@ -111,49 +113,123 @@ struct SuperSetsLiveActivity: Widget {
                         .font(.system(size: 11, weight: .black, design: .rounded))
                         .foregroundStyle(.white.opacity(0.5))
                 }
+                Spacer()
+                Text(
+                    timerInterval: context.attributes.workoutStartDate...Date.distantFuture,
+                    countsDown: false
+                )
+                .font(.system(size: 16, weight: .bold, design: .rounded).monospacedDigit())
+                .foregroundStyle(.white.opacity(0.7))
+            }
 
-                Text(context.state.currentLiftName)
-                    .font(.system(size: 16, weight: .bold))
-                    .foregroundStyle(.white)
-                    .lineLimit(1)
+            // Row 2: Lift name
+            Text(context.state.currentLiftName)
+                .font(.system(size: 18, weight: .bold))
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity, alignment: .leading)
 
+            // Row 3: Weight +/−  ·  Reps +/−  ·  LOG
+            HStack(spacing: 10) {
+                // Weight controls
+                HStack(spacing: 4) {
+                    Button(intent: AdjustWeightIntent(delta: -increment)) {
+                        Image(systemName: "minus")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(.white)
+                            .frame(width: 28, height: 28)
+                            .background(.white.opacity(0.15), in: Circle())
+                    }
+                    .buttonStyle(.plain)
+
+                    Text(formatWeight(context.state.pendingWeight))
+                        .font(.system(size: 15, weight: .bold, design: .rounded).monospacedDigit())
+                        .foregroundStyle(.white)
+                        .frame(minWidth: 40)
+
+                    Button(intent: AdjustWeightIntent(delta: increment)) {
+                        Image(systemName: "plus")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(.white)
+                            .frame(width: 28, height: 28)
+                            .background(.white.opacity(0.15), in: Circle())
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                // Reps controls
+                HStack(spacing: 4) {
+                    Button(intent: AdjustRepsIntent(delta: -1)) {
+                        Image(systemName: "minus")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(.white)
+                            .frame(width: 28, height: 28)
+                            .background(.white.opacity(0.15), in: Circle())
+                    }
+                    .buttonStyle(.plain)
+
+                    Text("\(context.state.pendingReps)")
+                        .font(.system(size: 15, weight: .bold, design: .rounded).monospacedDigit())
+                        .foregroundStyle(.white)
+                        .frame(minWidth: 24)
+
+                    Button(intent: AdjustRepsIntent(delta: 1)) {
+                        Image(systemName: "plus")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(.white)
+                            .frame(width: 28, height: 28)
+                            .background(.white.opacity(0.15), in: Circle())
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                Spacer()
+
+                // LOG button
+                Button(intent: LogSetIntent()) {
+                    Text("LOG")
+                        .font(.system(size: 13, weight: .black, design: .rounded))
+                        .foregroundStyle(.black)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background(.orange, in: Capsule())
+                }
+                .buttonStyle(.plain)
+            }
+
+            // Row 4: Set count + last set + SWITCH
+            HStack {
                 HStack(spacing: 8) {
                     Text("\(context.state.setCount) sets")
                         .font(.caption.bold())
                         .foregroundStyle(.white.opacity(0.7))
 
                     if !context.state.lastSetDisplay.isEmpty {
-                        Text(context.state.lastSetDisplay)
+                        Text("Last: \(context.state.lastSetDisplay)")
                             .font(.caption.monospacedDigit().bold())
                             .foregroundStyle(.orange)
                     }
                 }
-            }
 
-            Spacer()
-
-            // Right: Timer + LOG button
-            VStack(alignment: .trailing, spacing: 6) {
-                Text(
-                    timerInterval: context.attributes.workoutStartDate...Date.distantFuture,
-                    countsDown: false
-                )
-                .font(.system(size: 20, weight: .bold, design: .rounded).monospacedDigit())
-                .foregroundStyle(.white)
+                Spacer()
 
                 if let url = URL(string: "supersets://workout") {
                     Link(destination: url) {
-                        Text("LOG")
-                            .font(.system(size: 12, weight: .black, design: .rounded))
-                            .foregroundStyle(.black)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 8)
-                            .background(.orange, in: Capsule())
+                        Text("SWITCH")
+                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                            .foregroundStyle(.orange)
                     }
                 }
             }
         }
         .padding(16)
         .activityBackgroundTint(.black.opacity(0.85))
+    }
+
+    // MARK: - Helpers
+
+    private func formatWeight(_ weight: Double) -> String {
+        weight.truncatingRemainder(dividingBy: 1) == 0
+            ? String(format: "%.0f", weight)
+            : String(format: "%.1f", weight)
     }
 }

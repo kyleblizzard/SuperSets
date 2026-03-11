@@ -813,11 +813,18 @@ final class WorkoutManager {
     func startLiveActivity(workoutDate: Date) {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
 
+        let unit = userProfile?.preferredUnit ?? .lbs
+        let last = lastSetForLift(selectedLift)
+
         let attributes = WorkoutActivityAttributes(workoutStartDate: workoutDate)
         let initialState = WorkoutActivityAttributes.ContentState(
             currentLiftName: selectedLift?.name ?? "Workout",
             setCount: 0,
-            lastSetDisplay: ""
+            lastSetDisplay: "",
+            pendingWeight: last?.weight ?? (unit == .kg ? 60 : 135),
+            pendingReps: last?.reps ?? 8,
+            weightIncrement: unit == .kg ? 2.5 : 5.0,
+            unitLabel: unit.rawValue
         )
 
         do {
@@ -841,15 +848,78 @@ final class WorkoutManager {
             .sorted(by: { $0.timestamp < $1.timestamp })
             .last
 
+        let unit = userProfile?.preferredUnit ?? .lbs
+        let lastLiftSet = lastSetForLift(selectedLift)
+
         let state = WorkoutActivityAttributes.ContentState(
             currentLiftName: selectedLift?.name ?? "Workout",
             setCount: setCount,
-            lastSetDisplay: lastSet?.formattedDisplay ?? ""
+            lastSetDisplay: lastSet?.formattedDisplay ?? "",
+            pendingWeight: lastLiftSet?.weight ?? activity.content.state.pendingWeight,
+            pendingReps: lastLiftSet?.reps ?? activity.content.state.pendingReps,
+            weightIncrement: unit == .kg ? 2.5 : 5.0,
+            unitLabel: unit.rawValue
         )
 
         Task {
             await activity.update(.init(state: state, staleDate: nil))
         }
+    }
+
+    /// Log a set from the lock screen Live Activity (no UI interaction in-app).
+    func logSetFromLiveActivity(weight: Double, reps: Int) {
+        guard let context = modelContext,
+              let workout = activeWorkout,
+              let lift = selectedLift,
+              weight > 0, reps > 0
+        else { return }
+
+        let existingSets = workout.sets.filter {
+            $0.liftDefinition?.name == lift.name
+        }
+        let nextSetNumber = existingSets.count + 1
+
+        let newSet = WorkoutSet(
+            weight: weight,
+            reps: reps,
+            setNumber: nextSetNumber,
+            workout: workout,
+            liftDefinition: lift
+        )
+        context.insert(newSet)
+        lift.lastUsedDate = Date()
+
+        checkForNewPR(weight: weight, reps: reps, lift: lift)
+
+        updateLiveActivity()
+        save()
+        scheduleInactivityReminder()
+    }
+
+    /// Most recent set for a lift — checks current workout first, then history.
+    func lastSetForLift(_ lift: LiftDefinition?) -> WorkoutSet? {
+        guard let lift = lift else { return nil }
+
+        // Current workout
+        if let workout = activeWorkout {
+            let current = workout.sets
+                .filter { $0.liftDefinition?.name == lift.name }
+                .sorted { $0.timestamp > $1.timestamp }
+            if let last = current.first { return last }
+        }
+
+        // Previous workouts
+        guard let context = modelContext else { return nil }
+        let liftName = lift.name
+        var descriptor = FetchDescriptor<WorkoutSet>(
+            predicate: #Predicate<WorkoutSet> { ws in
+                ws.liftDefinition?.name == liftName &&
+                ws.workout?.isActive == false
+            },
+            sortBy: [SortDescriptor(\.timestamp, order: .reverse)]
+        )
+        descriptor.fetchLimit = 1
+        return try? context.fetch(descriptor).first
     }
 
     /// End the Live Activity when the workout finishes.
