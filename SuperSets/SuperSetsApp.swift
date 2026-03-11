@@ -18,6 +18,33 @@
 
 import SwiftUI
 import SwiftData
+import UserNotifications
+
+// MARK: - Notification Delegate
+
+/// Handles actionable notification responses for the workout inactivity reminder.
+class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
+    var workoutManager: WorkoutManager?
+
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        if response.notification.request.content.categoryIdentifier == "WORKOUT_INACTIVITY" {
+            workoutManager?.handleInactivityAction(response.actionIdentifier)
+        }
+        completionHandler()
+    }
+
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        completionHandler([.banner, .sound])
+    }
+}
 
 // MARK: - App Entry Point
 
@@ -25,6 +52,7 @@ import SwiftData
 struct SuperSetsApp: App {
 
     let container: ModelContainer
+    let notificationDelegate = NotificationDelegate()
     @State private var healthKitManager = HealthKitManager()
 
     init() {
@@ -39,19 +67,35 @@ struct SuperSetsApp: App {
         } catch {
             fatalError("Failed to create ModelContainer: \(error)")
         }
+
+        // Register notification category with actionable buttons
+        let center = UNUserNotificationCenter.current()
+        center.delegate = notificationDelegate
+
+        let endAction = UNNotificationAction(
+            identifier: "END_WORKOUT",
+            title: "End Workout",
+            options: .destructive
+        )
+        let keepAction = UNNotificationAction(
+            identifier: "KEEP_GOING",
+            title: "Keep Going"
+        )
+        let category = UNNotificationCategory(
+            identifier: "WORKOUT_INACTIVITY",
+            actions: [endAction, keepAction],
+            intentIdentifiers: []
+        )
+        center.setNotificationCategories([category])
     }
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            ContentView(notificationDelegate: notificationDelegate)
                 .environment(healthKitManager)
                 .onAppear {
                     healthKitManager.setup(context: container.mainContext)
                     Task { await healthKitManager.requestAuthorization() }
-                }
-                .onOpenURL { url in
-                    // Deep link from Live Activity — just opens the app to the workout screen.
-                    // The app is already showing the workout view by default.
                 }
         }
         .modelContainer(container)

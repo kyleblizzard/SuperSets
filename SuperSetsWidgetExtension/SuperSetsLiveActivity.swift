@@ -63,13 +63,15 @@ struct SuperSetsLiveActivity: Widget {
                         Spacer()
 
                         // Open app button
-                        Link(destination: URL(string: "supersets://workout")!) {
-                            Text("LOG")
-                                .font(.system(size: 11, weight: .black, design: .rounded))
-                                .foregroundStyle(.black)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 6)
-                                .background(.orange, in: Capsule())
+                        if let url = URL(string: "supersets://workout") {
+                            Link(destination: url) {
+                                Text("LOG")
+                                    .font(.system(size: 11, weight: .black, design: .rounded))
+                                    .foregroundStyle(.black)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 6)
+                                    .background(.orange, in: Capsule())
+                            }
                         }
                     }
                 }
@@ -139,13 +141,15 @@ struct SuperSetsLiveActivity: Widget {
                 .font(.system(size: 20, weight: .bold, design: .rounded).monospacedDigit())
                 .foregroundStyle(.white)
 
-                Link(destination: URL(string: "supersets://workout")!) {
-                    Text("LOG")
-                        .font(.system(size: 12, weight: .black, design: .rounded))
-                        .foregroundStyle(.black)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
-                        .background(.orange, in: Capsule())
+                if let url = URL(string: "supersets://workout") {
+                    Link(destination: url) {
+                        Text("LOG")
+                            .font(.system(size: 12, weight: .black, design: .rounded))
+                            .foregroundStyle(.black)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                            .background(.orange, in: Capsule())
+                    }
                 }
             }
         }

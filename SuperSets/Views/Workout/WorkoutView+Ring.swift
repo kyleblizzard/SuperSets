@@ -11,9 +11,9 @@ import QuartzCore
 // MARK: - Momentum Tuning
 
 private enum MomentumConfig {
-    static let decayRate: Double = 1.5               // exponential friction per second
-    static let snapThreshold: Double = 10.0          // deg/s — stop coast & snap
-    static let minimumCoastVelocity: Double = 35.0   // deg/s — below this, just snap
+    static let decayRate: Double = 3.0               // exponential friction per second
+    static let snapThreshold: Double = 20.0          // deg/s — stop coast & snap
+    static let minimumCoastVelocity: Double = 60.0   // deg/s — below this, just snap
     static let maxCoastDuration: TimeInterval = 8.0
     static let frameInterval: Duration = .milliseconds(8)  // ~120fps
     static let sampleBufferSize: Int = 2
@@ -46,12 +46,12 @@ extension WorkoutView {
         if reduceMotion {
             ringRotation = nearest
         } else {
-            withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+            withAnimation(.spring(response: 0.18, dampingFraction: 1.0)) {
                 ringRotation = nearest
             }
         }
-        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-        DispatchQueue.main.asyncAfter(deadline: .now() + (reduceMotion ? 0.05 : 0.35)) {
+        UIImpactFeedbackGenerator(style: .rigid).impactOccurred()
+        DispatchQueue.main.asyncAfter(deadline: .now() + (reduceMotion ? 0.05 : 0.18)) {
             selectLiftAtTop()
         }
     }
@@ -67,12 +67,12 @@ extension WorkoutView {
         if reduceMotion {
             ringRotation += delta
         } else {
-            withAnimation(.spring(response: 0.4, dampingFraction: 0.78)) {
+            withAnimation(.spring(response: 0.22, dampingFraction: 1.0)) {
                 ringRotation += delta
             }
         }
-        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-        DispatchQueue.main.asyncAfter(deadline: .now() + (reduceMotion ? 0.05 : 0.4)) {
+        UIImpactFeedbackGenerator(style: .rigid).impactOccurred()
+        DispatchQueue.main.asyncAfter(deadline: .now() + (reduceMotion ? 0.05 : 0.22)) {
             selectLiftAtTop()
         }
     }

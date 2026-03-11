@@ -31,41 +31,47 @@ struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     
     // MARK: State
-    
+
     /// The shared WorkoutManager that all child views use.
     @State private var workoutManager = WorkoutManager()
-    
+
     /// The shared TimerManager for the rest timer.
     @State private var timerManager = TimerManager()
-    
+
     /// Tracks first appearance for one-time setup.
     @State private var hasAppeared = false
+
+    /// Currently selected tab (for deep link routing).
+    @State private var selectedTab = 0
+
+    /// Notification delegate that needs a reference to WorkoutManager.
+    let notificationDelegate: NotificationDelegate
     
     // MARK: Body
     
     var body: some View {
-        TabView {
+        TabView(selection: $selectedTab) {
             // LEARNING NOTE:
             // Tab() is the iOS 26 way to define tabs. Each Tab gets a label,
             // an SF Symbol icon, and its content view. The tab bar automatically
             // receives Liquid Glass styling — no custom implementation needed.
-            
-            Tab("Workout", systemImage: "dumbbell.fill") {
+
+            Tab("Workout", systemImage: "dumbbell.fill", value: 0) {
                 WorkoutView(workoutManager: workoutManager, timerManager: timerManager)
                     .appBackground()
             }
-            
-            Tab("Journal", systemImage: "book.fill") {
+
+            Tab("Journal", systemImage: "book.fill", value: 1) {
                 JournalView(workoutManager: workoutManager)
                     .appBackground()
             }
-            
-            Tab("Progress", systemImage: "chart.line.uptrend.xyaxis") {
+
+            Tab("Progress", systemImage: "chart.line.uptrend.xyaxis", value: 2) {
                 ProgressDashboardView(workoutManager: workoutManager)
                     .appBackground()
             }
-            
-            Tab("Me", systemImage: "person.fill") {
+
+            Tab("Me", systemImage: "person.fill", value: 3) {
                 MeView(workoutManager: workoutManager)
                     .appBackground()
             }
@@ -83,11 +89,18 @@ struct ContentView: View {
             // to initialize WorkoutManager once. The flag prevents re-init.
             if !hasAppeared {
                 workoutManager.setup(context: modelContext)
+                notificationDelegate.workoutManager = workoutManager
                 // Sync timer default from user profile
                 if let duration = workoutManager.userProfile?.defaultRestTimerDuration {
                     timerManager.setDuration(duration)
                 }
                 hasAppeared = true
+            }
+        }
+        .onOpenURL { url in
+            // Deep link from Live Activity or notification — navigate to workout tab.
+            if url.scheme == "supersets" {
+                selectedTab = 0
             }
         }
     }

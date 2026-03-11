@@ -20,6 +20,7 @@ import ActivityKit
 import Foundation
 import SwiftData
 import SwiftUI
+import UserNotifications
 
 // MARK: - WorkoutManager
 
@@ -141,6 +142,7 @@ final class WorkoutManager {
         startLiveActivity(workoutDate: workout.date)
 
         save()
+        scheduleInactivityReminder()
     }
 
     /// End the current workout.
@@ -154,6 +156,7 @@ final class WorkoutManager {
         workout.endDate = Date()
         workout.notes = notes?.isEmpty == true ? nil : notes
 
+        cancelInactivityReminder()
         exitSuperSetMode()
         endLiveActivity()
 
@@ -218,6 +221,7 @@ final class WorkoutManager {
 
         updateLiveActivity()
         save()
+        scheduleInactivityReminder()
         return true
     }
 
@@ -653,6 +657,7 @@ final class WorkoutManager {
 
         updateLiveActivity()
         save()
+        scheduleInactivityReminder()
         return true
     }
 
@@ -867,6 +872,45 @@ final class WorkoutManager {
     func resumeLiveActivity() {
         let activities = Activity<WorkoutActivityAttributes>.activities
         liveActivity = activities.first
+    }
+
+    // MARK: - Inactivity Reminder
+
+    /// Schedule a local notification 30 minutes from now to remind the user
+    /// their workout is still active. Resets on every set log.
+    func scheduleInactivityReminder() {
+        let center = UNUserNotificationCenter.current()
+        center.removePendingNotificationRequests(withIdentifiers: ["workout-inactivity"])
+
+        // Request permission in context (no-op if already granted)
+        center.requestAuthorization(options: [.alert, .sound]) { granted, _ in
+            guard granted else { return }
+        }
+
+        let content = UNMutableNotificationContent()
+        content.title = "Still working out?"
+        content.body = "You haven't logged a set in 30 minutes."
+        content.sound = .default
+        content.categoryIdentifier = "WORKOUT_INACTIVITY"
+
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 30 * 60, repeats: false)
+        let request = UNNotificationRequest(identifier: "workout-inactivity", content: content, trigger: trigger)
+        center.add(request)
+    }
+
+    /// Cancel any pending inactivity reminder (called when workout ends).
+    func cancelInactivityReminder() {
+        UNUserNotificationCenter.current()
+            .removePendingNotificationRequests(withIdentifiers: ["workout-inactivity"])
+    }
+
+    /// Handle a notification action from the inactivity reminder.
+    func handleInactivityAction(_ action: String) {
+        if action == "END_WORKOUT" {
+            endWorkout()
+        } else if action == "KEEP_GOING" {
+            scheduleInactivityReminder()
+        }
     }
 
     // MARK: - Persistence
