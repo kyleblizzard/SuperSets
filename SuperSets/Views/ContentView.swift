@@ -82,7 +82,7 @@ struct ContentView: View {
         // screen real estate for workout content. Tap the pill to expand it back.
         .tabBarMinimizeBehavior(.onScrollDown)
         .tint(AppColors.accent)
-        .preferredColorScheme(colorScheme)
+        .preferredColorScheme(.dark)
         .onAppear {
             // LEARNING NOTE:
             // .onAppear runs every time the view appears, but we only want
@@ -105,16 +105,4 @@ struct ContentView: View {
         }
     }
     
-    // MARK: - Theme
-    
-    /// Returns the color scheme based on user preference.
-    private var colorScheme: ColorScheme? {
-        guard let theme = workoutManager.userProfile?.preferredTheme else {
-            return nil
-        }
-        switch theme {
-        case .dark:  return .dark
-        case .light: return .light
-        }
-    }
 }

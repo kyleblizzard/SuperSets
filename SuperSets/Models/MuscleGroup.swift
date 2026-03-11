@@ -162,18 +162,4 @@ struct MuscleGroupSection: Identifiable {
 /// A convenience initializer for creating Colors from hex values.
 /// This is a very common Swift extension you'll see in professional codebases.
 ///
-/// Usage: Color(hex: 0xFF6B6B) instead of Color(red: 1.0, green: 0.42, blue: 0.42)
-///
-/// LEARNING NOTE:
-/// The >> and & operators here are "bitwise" operations. They extract the
-/// red, green, and blue components from a single hex integer:
-///   0xFF6B6B → red: 0xFF (255), green: 0x6B (107), blue: 0x6B (107)
-///
-/// NOTE: For adaptive colors that change in light/dark mode, use Color(light:dark:)
-extension Color {
-    init(hex: UInt, opacity: Double = 1.0) {
-        self.init(
-            UIColor(hex: hex, opacity: opacity)
-        )
-    }
-}
+// Color(hex:) initializer is defined in AppTheme.swift

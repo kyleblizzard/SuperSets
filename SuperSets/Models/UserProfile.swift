@@ -29,12 +29,6 @@ enum BiologicalSex: String, Codable, CaseIterable {
     case female = "Female"
 }
 
-/// App theme options for visual appearance.
-enum AppThemeOption: String, Codable, CaseIterable {
-    case dark = "Dark"
-    case light = "Light"
-}
-
 /// Activity level multipliers for TDEE (Total Daily Energy Expenditure) calculation.
 ///
 /// LEARNING NOTE:
@@ -101,7 +95,7 @@ final class UserProfile {
     /// Whether the user prefers lbs or kg. Defaults to lbs.
     var preferredUnitRaw: String
     
-    /// The user's preferred visual theme (dark or light).
+    /// Unused — app is now dark-only. Kept to avoid SwiftData schema migration.
     var preferredThemeRaw: String
     
     /// The user's activity level for TDEE calculation.
@@ -149,12 +143,6 @@ final class UserProfile {
     var preferredUnit: WeightUnit {
         get { WeightUnit(rawValue: preferredUnitRaw) ?? .lbs }
         set { preferredUnitRaw = newValue.rawValue }
-    }
-    
-    /// Type-safe access to theme preference.
-    var preferredTheme: AppThemeOption {
-        get { AppThemeOption(rawValue: preferredThemeRaw) ?? .dark }
-        set { preferredThemeRaw = newValue.rawValue }
     }
     
     /// Type-safe access to activity level.
@@ -220,7 +208,7 @@ final class UserProfile {
         self.bodyWeight = 180
         self.waistInches = 34
         self.preferredUnitRaw = WeightUnit.lbs.rawValue
-        self.preferredThemeRaw = AppThemeOption.dark.rawValue
+        self.preferredThemeRaw = "Dark"
         self.activityLevelRaw = ActivityLevel.moderate.rawValue
         self.profilePhotoData = nil
         self.startDate = Date()

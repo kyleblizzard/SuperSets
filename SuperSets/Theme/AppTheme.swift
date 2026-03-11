@@ -17,105 +17,67 @@
 
 import SwiftUI
 
-// MARK: - App Color Palette (Adaptive)
+// MARK: - App Color Palette (Dark Only)
 
 /// Central color definitions for consistent theming.
-/// All colors automatically adapt to light/dark mode.
+/// Locked to dark mode for maximum Liquid Glass impact.
 enum AppColors {
 
     // MARK: Background Colors
 
-    static var backgroundTop: Color {
-        Color(light: 0xF5F7FA, dark: 0x060E1A)
-    }
-
-    static var backgroundMid: Color {
-        Color(light: 0xE0E5EC, dark: 0x0F2744)
-    }
-
-    static var backgroundBottom: Color {
-        Color(light: 0xC8D0DC, dark: 0x1B3B5A)
-    }
+    static let backgroundTop    = Color(hex: 0x060E1A)
+    static let backgroundMid    = Color(hex: 0x0F2744)
+    static let backgroundBottom = Color(hex: 0x1B3B5A)
 
     // MARK: Accent Colors (10% — Primary CTAs only)
 
-    static var accent: Color {
-        Color(light: 0x1565C0, dark: 0x2196F3)
-    }
-
-    static var accentSecondary: Color {
-        Color(light: 0x0097A7, dark: 0x00BCD4)
-    }
+    static let accent          = Color(hex: 0x2196F3)
+    static let accentSecondary = Color(hex: 0x00BCD4)
 
     // MARK: Secondary Colors (30% — Section headers, decorative elements, warm accents)
 
     /// Warm gold for achievements, secondary accents, section headers.
-    static var gold: Color {
-        Color(light: 0xC49000, dark: 0xFFD700)
-    }
+    static let gold      = Color(hex: 0xFFD700)
 
     /// Warm amber for softer secondary indicators.
-    static var warmAmber: Color {
-        Color(light: 0xB87A1A, dark: 0xF0C040)
-    }
+    static let warmAmber = Color(hex: 0xF0C040)
 
     // MARK: Semantic Colors
 
     /// Green for positive indicators (improved over previous workout).
-    static var positive: Color {
-        Color(light: 0x2E7D32, dark: 0x4CAF50)
-    }
+    static let positive = Color(hex: 0x4CAF50)
 
     /// Red for destructive actions and regression indicators.
-    static var danger: Color {
-        Color(light: 0xC62828, dark: 0xF44336)
-    }
+    static let danger   = Color(hex: 0xF44336)
 
     /// Gray for neutral/equal comparisons.
-    static var neutral: Color {
-        Color(light: 0x757575, dark: 0x9E9E9E)
-    }
+    static let neutral  = Color(hex: 0x9E9E9E)
 
     // MARK: Text Colors
 
-    /// Primary text — near-black in light, near-white in dark.
-    static var primaryText: Color {
-        Color(light: 0x1C1E21, dark: 0xE4E6EB)
-    }
+    /// Primary text — near-white on dark backgrounds.
+    static let primaryText = Color(hex: 0xE4E6EB)
 
     /// Secondary/subtle text for labels and hints.
-    static var subtleText: Color {
-        Color(light: 0x4E4F50, dark: 0xB0B3B8)
-    }
+    static let subtleText  = Color(hex: 0xB0B3B8)
 
     // MARK: Surface & Input Colors
 
-    static var glassBorder: Color {
-        Color(light: 0xBFC1C5, dark: 0x1E4976).opacity(0.8)
-    }
-
-    static var divider: Color {
-        Color(light: 0xDADDE1, dark: 0x1E4976)
-    }
+    static let glassBorder = Color(hex: 0x1E4976).opacity(0.8)
+    static let divider     = Color(hex: 0x1E4976)
 
     /// Background fill for text input fields.
-    /// Light: subtle gray · Dark: subtle white
-    static var inputFill: Color {
-        Color(light: 0xE4E6EB, dark: 0x1A2A3A)
-    }
+    static let inputFill   = Color(hex: 0x1A2A3A)
 
     /// Border for text input fields.
-    static var inputBorder: Color {
-        Color(light: 0xCED0D4, dark: 0x2A4A6A)
-    }
+    static let inputBorder = Color(hex: 0x2A4A6A)
 }
 
 // MARK: - Adaptive Background Gradient (5 Pools)
 
 /// The full-screen gradient behind all content.
-/// 5 radial pools create dramatic color shifts as glass refracts over them.
+/// 6 radial pools create dramatic color shifts as glass refracts over them.
 struct AppBackground: View {
-    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         ZStack {
@@ -126,15 +88,14 @@ struct AppBackground: View {
                     AppColors.backgroundMid,
                     AppColors.backgroundBottom
                 ],
-                startPoint: colorScheme == .light ? .top : .topLeading,
-                endPoint: colorScheme == .light ? .bottom : .bottomTrailing
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
             )
 
-            // 2. Upper-right radial pool — teal/sky (intensified)
+            // 2. Upper-right radial pool — teal/sky
             RadialGradient(
                 colors: [
-                    Color(light: 0xB3D4F0, dark: 0x1A5276)
-                        .opacity(colorScheme == .dark ? 0.40 : 0.45),
+                    Color(hex: 0x1A5276).opacity(0.40),
                     Color.clear
                 ],
                 center: UnitPoint(x: 0.8, y: 0.15),
@@ -142,11 +103,10 @@ struct AppBackground: View {
                 endRadius: 336
             )
 
-            // 3. Lower-left radial pool — purple/lavender (intensified)
+            // 3. Lower-left radial pool — purple/lavender
             RadialGradient(
                 colors: [
-                    Color(light: 0xE0C3F0, dark: 0x2C1654)
-                        .opacity(0.33),
+                    Color(hex: 0x2C1654).opacity(0.33),
                     Color.clear
                 ],
                 center: UnitPoint(x: 0.15, y: 0.75),
@@ -154,11 +114,10 @@ struct AppBackground: View {
                 endRadius: 300
             )
 
-            // 4. Center-bottom radial pool — emerald/sage (intensified)
+            // 4. Center-bottom radial pool — emerald/sage
             RadialGradient(
                 colors: [
-                    Color(light: 0xC5E8D5, dark: 0x0B3D2E)
-                        .opacity(0.26),
+                    Color(hex: 0x0B3D2E).opacity(0.26),
                     Color.clear
                 ],
                 center: UnitPoint(x: 0.5, y: 0.55),
@@ -166,11 +125,10 @@ struct AppBackground: View {
                 endRadius: 264
             )
 
-            // 5. NEW: Amber/gold pool — warm accent
+            // 5. Amber/gold pool — warm accent
             RadialGradient(
                 colors: [
-                    Color(light: 0xF0D9A0, dark: 0x5A4010)
-                        .opacity(colorScheme == .dark ? 0.25 : 0.22),
+                    Color(hex: 0x5A4010).opacity(0.25),
                     Color.clear
                 ],
                 center: UnitPoint(x: 0.7, y: 0.60),
@@ -178,11 +136,10 @@ struct AppBackground: View {
                 endRadius: 260
             )
 
-            // 6. NEW: Rose/pink pool — soft warmth
+            // 6. Rose/pink pool — soft warmth
             RadialGradient(
                 colors: [
-                    Color(light: 0xF0C0D0, dark: 0x4A1830)
-                        .opacity(colorScheme == .dark ? 0.20 : 0.18),
+                    Color(hex: 0x4A1830).opacity(0.20),
                     Color.clear
                 ],
                 center: UnitPoint(x: 0.3, y: 0.30),
@@ -211,9 +168,8 @@ enum DeepGlassShape {
 struct DeepGlassModifier: ViewModifier {
     let shape: DeepGlassShape
     var isActive: Bool = false
-    @Environment(\.colorScheme) private var colorScheme
 
-    private var shadowBase: Double { colorScheme == .dark ? 0.35 : 0.25 }
+    private let shadowBase: Double = 0.35
 
     func body(content: Content) -> some View {
         content
@@ -326,9 +282,8 @@ struct DeepGlassModifier: ViewModifier {
 /// simulating glass thickness.
 struct GlassSlabModifier: ViewModifier {
     let shape: DeepGlassShape
-    @Environment(\.colorScheme) private var colorScheme
 
-    private var shadowBase: Double { colorScheme == .dark ? 0.30 : 0.20 }
+    private let shadowBase: Double = 0.30
 
     func body(content: Content) -> some View {
         content
@@ -354,7 +309,7 @@ struct GlassSlabModifier: ViewModifier {
 
     @ViewBuilder
     private var outerHalo: some View {
-        let haloColor = Color.white.opacity(colorScheme == .dark ? 0.08 : 0.15)
+        let haloColor = Color.white.opacity(0.08)
         switch shape {
         case .circle:
             Circle().inset(by: -1.5).stroke(haloColor, lineWidth: 3).blur(radius: 2)
@@ -442,9 +397,8 @@ struct GlassSlabModifier: ViewModifier {
 /// Non-interactive glass base + tight 2-layer shadow + 0.5pt rim + subtle convex.
 struct GlassGemModifier: ViewModifier {
     let shape: DeepGlassShape
-    @Environment(\.colorScheme) private var colorScheme
 
-    private var shadowBase: Double { colorScheme == .dark ? 0.30 : 0.20 }
+    private let shadowBase: Double = 0.30
 
     func body(content: Content) -> some View {
         content
@@ -510,13 +464,12 @@ struct GlassGemModifier: ViewModifier {
 /// inverted rim stroke + single shadow. Replaces plain inputFill/inputBorder.
 struct GlassFieldModifier: ViewModifier {
     let cornerRadius: CGFloat
-    @Environment(\.colorScheme) private var colorScheme
 
     func body(content: Content) -> some View {
         content
             .glassEffect(.regular, in: .rect(cornerRadius: cornerRadius))
             // Single subtle shadow
-            .shadow(color: .black.opacity(colorScheme == .dark ? 0.20 : 0.12), radius: 2, y: 1)
+            .shadow(color: .black.opacity(0.20), radius: 2, y: 1)
             // Inverted depression gradient (dark top, light bottom)
             .overlay {
                 RoundedRectangle(cornerRadius: cornerRadius)
@@ -559,13 +512,12 @@ struct GlassFieldModifier: ViewModifier {
 /// when sitting inside a slab container.
 struct GlassRowModifier: ViewModifier {
     let cornerRadius: CGFloat
-    @Environment(\.colorScheme) private var colorScheme
 
     func body(content: Content) -> some View {
         content
             .glassEffect(.regular, in: .rect(cornerRadius: cornerRadius))
             // Single shadow for subtle lift
-            .shadow(color: .black.opacity(colorScheme == .dark ? 0.22 : 0.14), radius: 3, y: 1.5)
+            .shadow(color: .black.opacity(0.22), radius: 3, y: 1.5)
             // 0.5pt rim highlight
             .overlay {
                 RoundedRectangle(cornerRadius: cornerRadius)
@@ -664,29 +616,14 @@ extension View {
 
 // MARK: - Color Extensions
 
-/// Creates adaptive colors that switch between light and dark mode.
+/// Color from hex integer (e.g. 0x2196F3).
 extension Color {
-    init(light: UInt, dark: UInt) {
-        self.init(UIColor { traitCollection in
-            switch traitCollection.userInterfaceStyle {
-            case .light:  return UIColor(hex: light)
-            case .dark:   return UIColor(hex: dark)
-            case .unspecified:
-                return UIColor(hex: dark)
-            @unknown default: return UIColor(hex: dark)
-            }
-        })
-    }
-}
-
-/// UIColor from hex integer.
-extension UIColor {
-    convenience init(hex: UInt, opacity: Double = 1.0) {
+    init(hex: UInt, opacity: Double = 1.0) {
         self.init(
             red: Double((hex >> 16) & 0xFF) / 255.0,
             green: Double((hex >> 8) & 0xFF) / 255.0,
             blue: Double(hex & 0xFF) / 255.0,
-            alpha: opacity
+            opacity: opacity
         )
     }
 }

@@ -20,7 +20,6 @@ struct PreferencesView: View {
         ScrollView {
             VStack(spacing: 16) {
                 unitsSection
-                displaySection
                 inputSection
                 timerSection
                 Spacer().frame(height: 40)
@@ -50,39 +49,6 @@ struct PreferencesView: View {
                     )) {
                         ForEach(WeightUnit.allCases, id: \.self) { unit in
                             Text(unit.rawValue).tag(unit)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .frame(width: 140)
-                }
-            }
-        }
-        .padding(16)
-        .glassCard()
-    }
-
-    // MARK: - Display
-
-    private var displaySection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            sectionHeader("Display", icon: "paintbrush.fill")
-
-            if let profile = workoutManager.userProfile {
-                HStack {
-                    Text("Theme")
-                        .font(.subheadline)
-                        .foregroundStyle(AppColors.subtleText)
-                    Spacer()
-                    Picker("", selection: Binding<AppThemeOption>(
-                        get: { profile.preferredTheme },
-                        set: { newTheme in
-                            AppAnimation.perform(AppAnimation.smooth) {
-                                profile.preferredTheme = newTheme
-                            }
-                        }
-                    )) {
-                        ForEach(AppThemeOption.allCases, id: \.self) { theme in
-                            Text(theme.rawValue).tag(theme)
                         }
                     }
                     .pickerStyle(.segmented)
