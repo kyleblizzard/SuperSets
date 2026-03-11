@@ -32,6 +32,7 @@ struct MeView: View {
                     personalInfoSection
                     measurementsSection
                     rmrSection
+                    healthSection
                     Spacer().frame(height: 40)
                 }
                 .padding(.horizontal, 16)
@@ -222,6 +223,64 @@ struct MeView: View {
         .padding(20)
         .frame(maxWidth: .infinity)
         .glassCard()
+    }
+
+    // MARK: - Health Section
+
+    private var healthSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            sectionHeader("Health", icon: "heart.fill")
+
+            healthLink("Water Intake", icon: "drop.fill", color: AppColors.accent) {
+                WaterTrackingView(workoutManager: workoutManager)
+            }
+
+            healthLink("Sleep", icon: "bed.double.fill", color: AppColors.accent) {
+                SleepView(workoutManager: workoutManager)
+            }
+
+            healthLink("Medications & Supplements", icon: "pill.fill", color: AppColors.accent) {
+                MedicationView(workoutManager: workoutManager)
+            }
+
+            healthLink("Injections", icon: "syringe.fill", color: AppColors.accent) {
+                InjectionsView(workoutManager: workoutManager)
+            }
+
+            healthLink("Split Schedule", icon: "calendar.badge.clock", color: AppColors.accent) {
+                SplitScheduleView(workoutManager: workoutManager)
+            }
+        }
+        .padding(16)
+        .glassCard()
+    }
+
+    private func healthLink<Destination: View>(_ title: String, icon: String, color: Color, @ViewBuilder destination: @escaping () -> Destination) -> some View {
+        NavigationLink {
+            destination()
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: icon)
+                    .font(.system(size: 12))
+                    .foregroundStyle(AppColors.gold)
+                    .frame(width: 28, height: 28)
+                    .glassGem(.circle)
+
+                Text(title)
+                    .font(.subheadline.bold())
+                    .foregroundStyle(AppColors.primaryText)
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(AppColors.subtleText)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .deepGlass(.rect(cornerRadius: 12))
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Reusable Components

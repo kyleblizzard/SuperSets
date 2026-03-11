@@ -6,11 +6,40 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXContainerItemProxy section */
+		CC07000B2F50000100A89AF7 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = CCFC8D242F49E01D00A89AF7 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = CC0700062F50000100A89AF7;
+			remoteInfo = SuperSetsWidgetExtension;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		CC07000C2F50000100A89AF7 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		CC0700012F50000100A89AF7 /* SuperSetsWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = SuperSetsWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		CCFC8D2C2F49E01D00A89AF7 /* SuperSets.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SuperSets.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		CC0700022F50000100A89AF7 /* SuperSetsWidgetExtension */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = SuperSetsWidgetExtension;
+			sourceTree = "<group>";
+		};
 		CCFC8D2E2F49E01D00A89AF7 /* SuperSets */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = SuperSets;
@@ -19,6 +48,13 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		CC0700032F50000100A89AF7 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		CCFC8D292F49E01D00A89AF7 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -33,6 +69,7 @@
 			isa = PBXGroup;
 			children = (
 				CCFC8D2E2F49E01D00A89AF7 /* SuperSets */,
+				CC0700022F50000100A89AF7 /* SuperSetsWidgetExtension */,
 				CCFC8D2D2F49E01D00A89AF7 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -41,6 +78,7 @@
 			isa = PBXGroup;
 			children = (
 				CCFC8D2C2F49E01D00A89AF7 /* SuperSets.app */,
+				CC0700012F50000100A89AF7 /* SuperSetsWidgetExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -48,6 +86,28 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		CC0700062F50000100A89AF7 /* SuperSetsWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = CC0700092F50000100A89AF7 /* Build configuration list for PBXNativeTarget "SuperSetsWidgetExtension" */;
+			buildPhases = (
+				CC0700052F50000100A89AF7 /* Sources */,
+				CC0700032F50000100A89AF7 /* Frameworks */,
+				CC0700042F50000100A89AF7 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				CC0700022F50000100A89AF7 /* SuperSetsWidgetExtension */,
+			);
+			name = SuperSetsWidgetExtension;
+			packageProductDependencies = (
+			);
+			productName = SuperSetsWidgetExtension;
+			productReference = CC0700012F50000100A89AF7 /* SuperSetsWidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		CCFC8D2B2F49E01D00A89AF7 /* SuperSets */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = CCFC8D392F49E01F00A89AF7 /* Build configuration list for PBXNativeTarget "SuperSets" */;
@@ -55,10 +115,12 @@
 				CCFC8D282F49E01D00A89AF7 /* Sources */,
 				CCFC8D292F49E01D00A89AF7 /* Frameworks */,
 				CCFC8D2A2F49E01D00A89AF7 /* Resources */,
+				CC07000C2F50000100A89AF7 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				CC07000A2F50000100A89AF7 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				CCFC8D2E2F49E01D00A89AF7 /* SuperSets */,
@@ -80,6 +142,9 @@
 				LastSwiftUpdateCheck = 2620;
 				LastUpgradeCheck = 2620;
 				TargetAttributes = {
+					CC0700062F50000100A89AF7 = {
+						CreatedOnToolsVersion = 26.2;
+					};
 					CCFC8D2B2F49E01D00A89AF7 = {
 						CreatedOnToolsVersion = 26.2;
 					};
@@ -100,11 +165,19 @@
 			projectRoot = "";
 			targets = (
 				CCFC8D2B2F49E01D00A89AF7 /* SuperSets */,
+				CC0700062F50000100A89AF7 /* SuperSetsWidgetExtension */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		CC0700042F50000100A89AF7 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		CCFC8D2A2F49E01D00A89AF7 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -115,6 +188,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		CC0700052F50000100A89AF7 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		CCFC8D282F49E01D00A89AF7 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -124,7 +204,71 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		CC07000A2F50000100A89AF7 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = CC0700062F50000100A89AF7 /* SuperSetsWidgetExtension */;
+			targetProxy = CC07000B2F50000100A89AF7 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		CC0700072F50000100A89AF7 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 4HTHBQV6RN;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = SuperSets;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = org.kyleblizzard.SuperSets.SuperSetsWidgetExtension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		CC0700082F50000100A89AF7 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 4HTHBQV6RN;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = SuperSets;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = org.kyleblizzard.SuperSets.SuperSetsWidgetExtension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 		CCFC8D372F49E01F00A89AF7 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -256,6 +400,11 @@
 				DEVELOPMENT_TEAM = 4HTHBQV6RN;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Info.plist;
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "SuperSets reads your steps, active calories, and sleep data to help track your fitness progress.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "SuperSets reads your health data to display fitness insights.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "SuperSets uses your photo library to set a profile picture.";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -288,6 +437,11 @@
 				DEVELOPMENT_TEAM = 4HTHBQV6RN;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Info.plist;
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "SuperSets reads your steps, active calories, and sleep data to help track your fitness progress.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "SuperSets reads your health data to display fitness insights.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "SuperSets uses your photo library to set a profile picture.";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -313,6 +467,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		CC0700092F50000100A89AF7 /* Build configuration list for PBXNativeTarget "SuperSetsWidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CC0700072F50000100A89AF7 /* Debug */,
+				CC0700082F50000100A89AF7 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		CCFC8D272F49E01D00A89AF7 /* Build configuration list for PBXProject "SuperSets" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

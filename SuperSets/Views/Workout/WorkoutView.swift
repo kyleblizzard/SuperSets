@@ -4,7 +4,7 @@
 // The main workout tracking screen — the heart of the app.
 // Layout from top to bottom:
 //   1. Top buttons row — Add Lift (left), unit label (center), Super Set (right)
-//   2. Rotary lift ring — 10 glass circles that spin like a revolver cylinder
+//   2. Rotary lift ring — 8 glass circles that spin like a revolver cylinder
 //   3. Combined sets view — Today (left) vs Previous (right) side-by-side
 //      with workout elapsed time at the bottom
 //   4. End Workout button
@@ -48,6 +48,7 @@ struct WorkoutView: View {
 
     @State var wheelWeight: Double = 135.0
     @State var wheelReps: Int = 8
+    @State var wheelMinutes: Int = 30
 
     // MARK: Super Set State
 
@@ -103,8 +104,8 @@ struct WorkoutView: View {
 
     var ringSize: CGFloat { min(availableWidth, 380) }
     var ringRadius: CGFloat { ringSize * 0.42 }
-    var circleSize: CGFloat { ringSize * 0.19 }
-    var centerSize: CGFloat { ringSize * 0.5 }
+    var circleSize: CGFloat { ringSize * 0.22 }
+    var centerSize: CGFloat { ringSize * 0.62 }
     /// Number of lift slots on the ring, derived from WorkoutManager constant.
     var slotCount: Int { WorkoutManager.ringSlotCount }
     /// Degrees per slot: 360 / slotCount.
@@ -139,7 +140,7 @@ struct WorkoutView: View {
 
                 radialLiftRing
 
-                if workoutManager.selectedLift != nil {
+                if workoutManager.activeWorkout != nil && workoutManager.selectedLift != nil {
                     combinedSetsView
                 }
 
@@ -230,7 +231,11 @@ struct WorkoutView: View {
                 }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
                     if let first = workoutManager.recentLifts.first {
-                        workoutManager.selectLift(first)
+                        if workoutManager.activeWorkout != nil {
+                            workoutManager.selectLift(first)
+                        } else {
+                            workoutManager.browseLift(first)
+                        }
                     }
                 }
             }

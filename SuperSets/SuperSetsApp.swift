@@ -25,6 +25,7 @@ import SwiftData
 struct SuperSetsApp: App {
 
     let container: ModelContainer
+    @State private var healthKitManager = HealthKitManager()
 
     init() {
         let schema = Schema(versionedSchema: SchemaV1.self)
@@ -43,6 +44,15 @@ struct SuperSetsApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environment(healthKitManager)
+                .onAppear {
+                    healthKitManager.setup(context: container.mainContext)
+                    Task { await healthKitManager.requestAuthorization() }
+                }
+                .onOpenURL { url in
+                    // Deep link from Live Activity — just opens the app to the workout screen.
+                    // The app is already showing the workout view by default.
+                }
         }
         .modelContainer(container)
     }

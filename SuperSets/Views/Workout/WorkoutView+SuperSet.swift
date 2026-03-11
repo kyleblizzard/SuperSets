@@ -10,6 +10,13 @@ import SwiftUI
 
 extension WorkoutView {
 
+    // MARK: Ring Index Helper
+
+    /// Find the ring index of a lift by name.
+    func ringIndexOf(_ lift: LiftDefinition) -> Int? {
+        workoutManager.recentLifts.firstIndex(where: { $0.name == lift.name })
+    }
+
     // MARK: Super Set Center Panel
 
     /// Cycle-through center panel for super set mode.
@@ -38,38 +45,56 @@ extension WorkoutView {
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
 
-                // Wheel pickers with labels
-                HStack(spacing: 4) {
+                // Wheel pickers — cardio gets Minutes, others get Weight/Reps
+                if workoutManager.isCardioLift(lift) {
                     VStack(spacing: 0) {
-                        Text("Weight")
+                        Text("Minutes")
                             .font(.system(size: 8, weight: .bold))
                             .foregroundStyle(AppColors.subtleText)
-                        Picker("Weight", selection: superSetWeightBinding(for: lift.name)) {
-                            ForEach(weightOptions, id: \.self) { value in
-                                Text(formatWheelWeight(value))
-                                    .font(.system(size: 18, weight: .bold, design: .rounded).monospacedDigit())
-                                    .tag(value)
-                            }
-                        }
-                        .pickerStyle(.wheel)
-                        .frame(width: 72, height: 80)
-                        .clipped()
-                    }
-
-                    VStack(spacing: 0) {
-                        Text("Reps")
-                            .font(.system(size: 8, weight: .bold))
-                            .foregroundStyle(AppColors.subtleText)
-                        Picker("Reps", selection: superSetRepsBinding(for: lift.name)) {
-                            ForEach(1...99, id: \.self) { value in
+                        Picker("Minutes", selection: superSetWeightBinding(for: lift.name)) {
+                            ForEach(1...120, id: \.self) { value in
                                 Text("\(value)")
                                     .font(.system(size: 18, weight: .bold, design: .rounded).monospacedDigit())
-                                    .tag(value)
+                                    .tag(Double(value))
                             }
                         }
                         .pickerStyle(.wheel)
-                        .frame(width: 72, height: 80)
+                        .frame(width: 100, height: 80)
                         .clipped()
+                    }
+                } else {
+                    HStack(spacing: 4) {
+                        VStack(spacing: 0) {
+                            Text("Weight")
+                                .font(.system(size: 8, weight: .bold))
+                                .foregroundStyle(AppColors.subtleText)
+                            Picker("Weight", selection: superSetWeightBinding(for: lift.name)) {
+                                ForEach(weightOptions, id: \.self) { value in
+                                    Text(formatWheelWeight(value))
+                                        .font(.system(size: 18, weight: .bold, design: .rounded).monospacedDigit())
+                                        .tag(value)
+                                }
+                            }
+                            .pickerStyle(.wheel)
+                            .frame(width: 72, height: 80)
+                            .clipped()
+                        }
+
+                        VStack(spacing: 0) {
+                            Text("Reps")
+                                .font(.system(size: 8, weight: .bold))
+                                .foregroundStyle(AppColors.subtleText)
+                            Picker("Reps", selection: superSetRepsBinding(for: lift.name)) {
+                                ForEach(1...99, id: \.self) { value in
+                                    Text("\(value)")
+                                        .font(.system(size: 18, weight: .bold, design: .rounded).monospacedDigit())
+                                        .tag(value)
+                                }
+                            }
+                            .pickerStyle(.wheel)
+                            .frame(width: 72, height: 80)
+                            .clipped()
+                        }
                     }
                 }
 
@@ -77,8 +102,12 @@ extension WorkoutView {
                 HStack(spacing: 6) {
                     Button {
                         saveSuperSetWheelValues()
+                        let prevIndex = max(0, safeIndex - 1)
                         AppAnimation.perform(AppAnimation.quick) {
-                            superSetInputIndex = max(0, safeIndex - 1)
+                            superSetInputIndex = prevIndex
+                        }
+                        if let ringIdx = ringIndexOf(lifts[prevIndex]) {
+                            animateToSlot(ringIdx)
                         }
                     } label: {
                         Image(systemName: "chevron.left")
@@ -96,8 +125,12 @@ extension WorkoutView {
                         if isLastLift {
                             logSuperSetAction()
                         } else {
+                            let nextIndex = safeIndex + 1
                             AppAnimation.perform(AppAnimation.quick) {
-                                superSetInputIndex = safeIndex + 1
+                                superSetInputIndex = nextIndex
+                            }
+                            if let ringIdx = ringIndexOf(lifts[nextIndex]) {
+                                animateToSlot(ringIdx)
                             }
                         }
                     } label: {
@@ -113,8 +146,12 @@ extension WorkoutView {
 
                     Button {
                         saveSuperSetWheelValues()
+                        let nextIndex = min(lifts.count - 1, safeIndex + 1)
                         AppAnimation.perform(AppAnimation.quick) {
-                            superSetInputIndex = min(lifts.count - 1, safeIndex + 1)
+                            superSetInputIndex = nextIndex
+                        }
+                        if let ringIdx = ringIndexOf(lifts[nextIndex]) {
+                            animateToSlot(ringIdx)
                         }
                     } label: {
                         Image(systemName: "chevron.right")
@@ -134,9 +171,13 @@ extension WorkoutView {
     // MARK: Super Set Bindings
 
     /// Binding for the super set wheel weight for a given lift name.
+    /// Cardio lifts default to 30 (minutes), others default to 135 (lbs/kg).
     func superSetWeightBinding(for liftName: String) -> Binding<Double> {
-        Binding<Double>(
-            get: { superSetWheelWeights[liftName] ?? 135.0 },
+        let isCardio = workoutManager.superSetLifts.first(where: { $0.name == liftName })
+            .map { workoutManager.isCardioLift($0) } ?? false
+        let defaultValue: Double = isCardio ? 30.0 : 135.0
+        return Binding<Double>(
+            get: { superSetWheelWeights[liftName] ?? defaultValue },
             set: { newValue in
                 superSetWheelWeights[liftName] = newValue
                 workoutManager.superSetWeights[liftName] = formatWheelWeight(newValue)
@@ -159,11 +200,19 @@ extension WorkoutView {
     func saveSuperSetWheelValues() {
         for lift in workoutManager.superSetLifts {
             let name = lift.name
-            if let w = superSetWheelWeights[name] {
-                workoutManager.superSetWeights[name] = formatWheelWeight(w)
-            }
-            if let r = superSetWheelReps[name] {
-                workoutManager.superSetReps[name] = "\(r)"
+            if workoutManager.isCardioLift(lift) {
+                // Cardio: weight = minutes, reps = 1
+                if let w = superSetWheelWeights[name] {
+                    workoutManager.superSetWeights[name] = formatWheelWeight(w)
+                }
+                workoutManager.superSetReps[name] = "1"
+            } else {
+                if let w = superSetWheelWeights[name] {
+                    workoutManager.superSetWeights[name] = formatWheelWeight(w)
+                }
+                if let r = superSetWheelReps[name] {
+                    workoutManager.superSetReps[name] = "\(r)"
+                }
             }
         }
     }
@@ -186,6 +235,12 @@ extension WorkoutView {
 
             // Reset to first lift for next round
             superSetInputIndex = 0
+
+            // Rotate ring back to first lift
+            if let firstLift = workoutManager.superSetLifts.first,
+               let ringIdx = ringIndexOf(firstLift) {
+                animateToSlot(ringIdx)
+            }
 
             // Reset reps wheels (weights persist)
             for lift in workoutManager.superSetLifts {

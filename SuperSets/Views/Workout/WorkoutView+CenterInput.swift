@@ -18,22 +18,43 @@ extension WorkoutView {
         Group {
             if showTimerInCenter && workoutManager.activeWorkout != nil {
                 centerTimerPanel
-            } else if let lift = workoutManager.selectedLift {
-                if useWheelInput {
+            } else if workoutManager.activeWorkout != nil, let lift = workoutManager.selectedLift {
+                // Active workout — show input panel
+                if workoutManager.isCardioLift(lift) {
+                    cardioInputPanel(for: lift)
+                } else if useWheelInput {
                     wheelInputPanel(for: lift)
                 } else {
                     keyboardInputPanel(for: lift)
                 }
             } else {
-                // No lift selected hint
-                VStack(spacing: 6) {
-                    Image(systemName: "hand.tap")
-                        .font(.system(size: 24))
-                        .foregroundStyle(AppColors.accent.opacity(0.6))
-                    Text("Select\na lift")
-                        .font(.caption2)
-                        .foregroundStyle(AppColors.subtleText)
-                        .multilineTextAlignment(.center)
+                // No active workout — branding + Begin Lift
+                VStack(spacing: 10) {
+                    Image(systemName: "figure.strengthtraining.traditional")
+                        .font(.system(size: 32, weight: .bold))
+                        .foregroundStyle(AppColors.gold)
+
+                    Text("SuperSets")
+                        .font(.system(size: 18, weight: .black, design: .rounded))
+                        .foregroundStyle(AppColors.primaryText)
+
+                    if workoutManager.selectedLift != nil || !workoutManager.recentLifts.isEmpty {
+                        Button {
+                            // selectLift auto-starts a workout
+                            guard let lift = workoutManager.selectedLift ?? workoutManager.recentLifts.first else { return }
+                            workoutManager.selectLift(lift)
+                            if let idx = workoutManager.selectedLiftIndex {
+                                animateToSlot(idx)
+                            }
+                        } label: {
+                            Text("Begin Lift")
+                                .font(.system(size: 13, weight: .bold, design: .rounded))
+                                .foregroundStyle(AppColors.gold)
+                                .frame(width: 100, height: 40)
+                                .deepGlass(.capsule)
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
                 .frame(width: centerSize * 0.875, height: centerSize * 0.875)
             }
@@ -44,64 +65,57 @@ extension WorkoutView {
 
     /// Wheel mode — compact pickers + circular LOG.
     func wheelInputPanel(for lift: LiftDefinition) -> some View {
-        VStack(spacing: 0) {
-            Text(lift.name)
-                .font(.system(size: 10, weight: .bold))
-                .foregroundStyle(AppColors.subtleText)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-
-            HStack(spacing: 4) {
+        VStack(spacing: 6) {
+            HStack(spacing: 8) {
                 // Weight column with label
                 VStack(spacing: 0) {
                     Text("Weight")
-                        .font(.system(size: 8, weight: .bold))
+                        .font(.system(size: 9, weight: .bold))
                         .foregroundStyle(AppColors.subtleText)
                     Picker("Weight", selection: $wheelWeight) {
                         ForEach(weightOptions, id: \.self) { value in
                             Text(formatWheelWeight(value))
-                                .font(.system(size: 18, weight: .bold, design: .rounded).monospacedDigit())
+                                .font(.system(size: 22, weight: .bold, design: .rounded).monospacedDigit())
                                 .tag(value)
                         }
                     }
                     .pickerStyle(.wheel)
-                    .frame(width: 72, height: 90)
+                    .frame(width: 100, height: 132)
                     .clipped()
+                    .glassField(cornerRadius: 12)
                 }
 
                 // Reps column with label
                 VStack(spacing: 0) {
                     Text("Reps")
-                        .font(.system(size: 8, weight: .bold))
+                        .font(.system(size: 9, weight: .bold))
                         .foregroundStyle(AppColors.subtleText)
                     Picker("Reps", selection: $wheelReps) {
                         ForEach(1...99, id: \.self) { value in
                             Text("\(value)")
-                                .font(.system(size: 18, weight: .bold, design: .rounded).monospacedDigit())
+                                .font(.system(size: 22, weight: .bold, design: .rounded).monospacedDigit())
                                 .tag(value)
                         }
                     }
                     .pickerStyle(.wheel)
-                    .frame(width: 72, height: 90)
+                    .frame(width: 100, height: 132)
                     .clipped()
+                    .glassField(cornerRadius: 12)
                 }
             }
+            .offset(y: -8)
 
-            // LOG + timer row
-            HStack(spacing: 6) {
-                timerShortcutButton
-
-                Button { logSetAction() } label: {
-                    Text(showSetLogged ? "\u{2713}" : "LOG")
-                        .font(.system(size: 13, weight: .bold, design: .rounded))
-                        .foregroundStyle(showSetLogged ? AppColors.positive : AppColors.accent)
-                        .frame(width: 50, height: 50)
-                        .deepGlass(.circle)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(showSetLogged ? "Set logged" : "Log set")
-                .accessibilityHint("Records the current weight and reps as a set")
+            // LOG button (centered)
+            Button { logSetAction() } label: {
+                Text(showSetLogged ? "\u{2713}" : "LOG")
+                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .foregroundStyle(showSetLogged ? AppColors.positive : AppColors.gold)
+                    .frame(width: 50, height: 50)
+                    .deepGlass(.circle)
             }
+            .buttonStyle(.plain)
+            .accessibilityLabel(showSetLogged ? "Set logged" : "Log set")
+            .accessibilityHint("Records the current weight and reps as a set")
         }
         .frame(width: centerSize, height: centerSize)
         .onChange(of: wheelWeight) { _, newValue in
@@ -112,17 +126,57 @@ extension WorkoutView {
         }
     }
 
+    // MARK: Cardio Input Mode
+
+    /// Cardio mode — single "Minutes" wheel picker + LOG button.
+    /// Stores minutes as weight and auto-sets reps to 1.
+    func cardioInputPanel(for lift: LiftDefinition) -> some View {
+        VStack(spacing: 6) {
+            VStack(spacing: 0) {
+                Text("Minutes")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(AppColors.subtleText)
+                Picker("Minutes", selection: $wheelMinutes) {
+                    ForEach(1...120, id: \.self) { value in
+                        Text("\(value)")
+                            .font(.system(size: 22, weight: .bold, design: .rounded).monospacedDigit())
+                            .tag(value)
+                    }
+                }
+                .pickerStyle(.wheel)
+                .frame(width: 100, height: 132)
+                .clipped()
+                .glassField(cornerRadius: 12)
+            }
+            .offset(y: -8)
+
+            // LOG button
+            Button { logCardioAction() } label: {
+                Text(showSetLogged ? "\u{2713}" : "LOG")
+                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .foregroundStyle(showSetLogged ? AppColors.positive : AppColors.gold)
+                    .frame(width: 50, height: 50)
+                    .deepGlass(.circle)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(showSetLogged ? "Set logged" : "Log cardio")
+            .accessibilityHint("Records the current minutes as a cardio set")
+        }
+        .frame(width: centerSize, height: centerSize)
+    }
+
+    /// Log a cardio set: minutes stored as weight, reps = 1.
+    func logCardioAction() {
+        workoutManager.weightInput = "\(wheelMinutes)"
+        workoutManager.repsInput = "1"
+        logSetAction()
+    }
+
     // MARK: Keyboard Input Mode
 
     /// Keyboard mode — text fields + circular log button.
     func keyboardInputPanel(for lift: LiftDefinition) -> some View {
         VStack(spacing: 6) {
-            Text(lift.name)
-                .font(.system(size: 10, weight: .bold))
-                .foregroundStyle(AppColors.subtleText)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-
             HStack(spacing: 4) {
                 VStack(spacing: 2) {
                     Text("Weight")
@@ -153,46 +207,19 @@ extension WorkoutView {
                 }
             }
 
-            HStack(spacing: 6) {
-                timerShortcutButton
-
-                Button { logSetAction() } label: {
-                    Image(systemName: showSetLogged ? "checkmark" : "plus")
-                        .font(.system(size: 20, weight: .bold))
-                        .foregroundStyle(showSetLogged ? AppColors.positive : AppColors.accent)
-                        .frame(width: 50, height: 50)
-                        .deepGlass(.circle)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(showSetLogged ? "Set logged" : "Log set")
-                .accessibilityHint("Records the current weight and reps as a set")
-            }
-        }
-        .frame(width: centerSize, height: centerSize)
-    }
-
-    // MARK: Timer Shortcut Button
-
-    /// Small timer button that opens the center timer panel.
-    @ViewBuilder
-    var timerShortcutButton: some View {
-        if workoutManager.activeWorkout != nil {
-            Button {
-                AppAnimation.perform(AppAnimation.spring) {
-                    showTimerInCenter = true
-                }
-                UIImpactFeedbackGenerator(style: .light).impactOccurred()
-            } label: {
-                Image(systemName: "timer")
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(timerManager.isRunning ? AppColors.positive : AppColors.subtleText)
-                    .frame(width: 37, height: 37)
+            // LOG button (centered)
+            Button { logSetAction() } label: {
+                Image(systemName: showSetLogged ? "checkmark" : "plus")
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundStyle(showSetLogged ? AppColors.positive : AppColors.gold)
+                    .frame(width: 50, height: 50)
                     .deepGlass(.circle)
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("Rest timer")
-            .accessibilityValue(timerManager.isRunning ? "Running, \(timerManager.formattedTime) remaining" : "Stopped")
+            .accessibilityLabel(showSetLogged ? "Set logged" : "Log set")
+            .accessibilityHint("Records the current weight and reps as a set")
         }
+        .frame(width: centerSize, height: centerSize)
     }
 
     // MARK: Center Timer Panel
@@ -200,23 +227,6 @@ extension WorkoutView {
     /// Timer view that takes over the ring center when activated.
     var centerTimerPanel: some View {
         VStack(spacing: 6) {
-            // Close button
-            HStack {
-                Spacer()
-                Button {
-                    AppAnimation.perform(AppAnimation.spring) {
-                        showTimerInCenter = false
-                    }
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundStyle(AppColors.subtleText)
-                        .frame(width: 32, height: 32)
-                        .deepGlass(.circle)
-                }
-                .buttonStyle(.plain)
-            }
-
             Text("Rest Timer")
                 .font(.system(size: 10, weight: .bold))
                 .foregroundStyle(AppColors.subtleText)
@@ -249,6 +259,9 @@ extension WorkoutView {
                 if timerManager.isRunning {
                     UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
                     timerManager.stop()
+                    AppAnimation.perform(AppAnimation.spring) {
+                        showTimerInCenter = false
+                    }
                 } else {
                     UIImpactFeedbackGenerator(style: .light).impactOccurred()
                     timerManager.start()

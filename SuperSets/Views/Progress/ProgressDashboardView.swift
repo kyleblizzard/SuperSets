@@ -37,13 +37,16 @@ struct ProgressDashboardView: View {
     @State private var weightChartDays = 30
     @State private var personalRecords: [PersonalRecord] = []
     @State private var weeklyVolumes: [WeeklyVolume] = []
+    @Environment(HealthKitManager.self) private var healthKitManager: HealthKitManager?
 
     // MARK: Body
 
     var body: some View {
+        NavigationStack {
         ScrollView {
             VStack(spacing: 16) {
                 statsCard
+                bodyTrackingLinksSection
                 bodyWeightSection
                 personalRecordsSection
                 volumeTrendsSection
@@ -83,6 +86,7 @@ struct ProgressDashboardView: View {
                 .presentationDetents([.medium])
                 .presentationDragIndicator(.visible)
         }
+        } // NavigationStack
     }
 
     // MARK: - Refresh Data
@@ -218,32 +222,82 @@ struct ProgressDashboardView: View {
                     .font(.caption)
                     .foregroundStyle(AppColors.subtleText)
             }
+
+            // Recent entries list
+            if !entries.isEmpty {
+                Divider().background(AppColors.divider)
+                ForEach(entries.reversed().prefix(5), id: \.date) { entry in
+                    HStack {
+                        Text(Formatters.shortDate.string(from: entry.date))
+                            .font(.caption)
+                            .foregroundStyle(AppColors.subtleText)
+                        Spacer()
+                        Text(String(format: "%.1f", entry.weight))
+                            .font(.body.bold().monospacedDigit())
+                            .foregroundStyle(AppColors.primaryText)
+                        Text(workoutManager.userProfile?.preferredUnit.rawValue ?? "lbs")
+                            .font(.caption)
+                            .foregroundStyle(AppColors.subtleText)
+                    }
+                    .padding(.vertical, 2)
+                    .padding(.horizontal, 4)
+                    .glassRow(cornerRadius: 8)
+                }
+            }
         }
         .padding(16)
         .glassCard()
     }
 
     private func bodyWeightChart(entries: [WeightEntry]) -> some View {
-        Chart(entries, id: \.date) { entry in
-            LineMark(
-                x: .value("Date", entry.date),
-                y: .value("Weight", entry.weight)
-            )
-            .interpolationMethod(.catmullRom)
-            .foregroundStyle(AppColors.accent)
+        let movingAvg = movingAverage(entries: entries, window: 7)
+        let goalWeight = workoutManager.activeGoal()?.targetWeight
 
-            AreaMark(
-                x: .value("Date", entry.date),
-                y: .value("Weight", entry.weight)
-            )
-            .interpolationMethod(.catmullRom)
-            .foregroundStyle(
-                LinearGradient(
-                    colors: [AppColors.accent.opacity(0.3), AppColors.accent.opacity(0.05)],
-                    startPoint: .top,
-                    endPoint: .bottom
+        return Chart {
+            ForEach(entries, id: \.date) { entry in
+                LineMark(
+                    x: .value("Date", entry.date),
+                    y: .value("Weight", entry.weight)
                 )
-            )
+                .interpolationMethod(.catmullRom)
+                .foregroundStyle(AppColors.accent)
+
+                AreaMark(
+                    x: .value("Date", entry.date),
+                    y: .value("Weight", entry.weight)
+                )
+                .interpolationMethod(.catmullRom)
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [AppColors.accent.opacity(0.3), AppColors.accent.opacity(0.05)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+            }
+
+            // 7-day moving average overlay
+            ForEach(movingAvg, id: \.date) { point in
+                LineMark(
+                    x: .value("Date", point.date),
+                    y: .value("Avg", point.weight)
+                )
+                .interpolationMethod(.catmullRom)
+                .foregroundStyle(AppColors.gold.opacity(0.8))
+                .lineStyle(StrokeStyle(lineWidth: 2, dash: [5, 3]))
+            }
+
+            // Goal weight line
+            if let goal = goalWeight {
+                RuleMark(y: .value("Goal", goal))
+                    .foregroundStyle(AppColors.positive.opacity(0.6))
+                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [8, 4]))
+                    .annotation(position: .top, alignment: .trailing) {
+                        Text("Goal")
+                            .font(.system(size: 8, weight: .bold))
+                            .foregroundStyle(AppColors.positive)
+                    }
+            }
         }
         .chartXAxis {
             AxisMarks(values: .stride(by: .day, count: weightChartDays <= 30 ? 7 : 14)) {
@@ -254,14 +308,30 @@ struct ProgressDashboardView: View {
             }
         }
         .chartYAxis {
-            AxisMarks { mark in
+            AxisMarks { _ in
                 AxisValueLabel()
                     .foregroundStyle(AppColors.subtleText)
                 AxisGridLine()
                     .foregroundStyle(AppColors.divider)
             }
         }
-        .frame(height: 160)
+        .frame(height: 200)
+    }
+
+    /// Compute 7-day moving average for weight entries.
+    private func movingAverage(entries: [WeightEntry], window: Int) -> [WeightEntry] {
+        guard entries.count >= window else { return [] }
+        var result: [WeightEntry] = []
+        for i in (window - 1)..<entries.count {
+            let windowEntries = entries[(i - window + 1)...i]
+            let avg = windowEntries.reduce(0.0) { $0 + $1.weight } / Double(window)
+            // Create a lightweight stand-in using the date from the last entry in the window
+            let point = WeightEntry(weight: avg)
+            // Manually set date to match
+            point.date = entries[i].date
+            result.append(point)
+        }
+        return result
     }
 
     private var weightInputSheet: some View {
@@ -641,6 +711,91 @@ struct ProgressDashboardView: View {
         }
         .padding(16)
         .glassCard()
+    }
+
+    // MARK: - Body Tracking Links
+
+    private var bodyTrackingLinksSection: some View {
+        VStack(spacing: 10) {
+            NavigationLink {
+                BodyMeasurementsView(workoutManager: workoutManager)
+            } label: {
+                HStack {
+                    Image(systemName: "ruler.fill")
+                        .font(.system(size: 14))
+                        .foregroundStyle(AppColors.gold)
+                        .frame(width: 32, height: 32)
+                        .glassGem(.circle)
+
+                    Text("Body Measurements")
+                        .font(.subheadline.bold())
+                        .foregroundStyle(AppColors.primaryText)
+
+                    Spacer()
+
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundStyle(AppColors.subtleText.opacity(0.5))
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .deepGlass(.rect(cornerRadius: 16))
+            }
+            .buttonStyle(.plain)
+
+            NavigationLink {
+                BodyFatView(workoutManager: workoutManager)
+            } label: {
+                trackingLinkRow(icon: "percent", title: "Body Fat Tracking")
+            }
+            .buttonStyle(.plain)
+
+            if let hk = healthKitManager {
+                NavigationLink {
+                    StepsView(healthKitManager: hk)
+                } label: {
+                    trackingLinkRow(icon: "figure.walk", title: "Steps")
+                }
+                .buttonStyle(.plain)
+
+                NavigationLink {
+                    CaloriesView(workoutManager: workoutManager, healthKitManager: hk)
+                } label: {
+                    trackingLinkRow(icon: "flame.fill", title: "Calories & TDEE")
+                }
+                .buttonStyle(.plain)
+            }
+
+            NavigationLink {
+                GoalSettingView(workoutManager: workoutManager)
+            } label: {
+                trackingLinkRow(icon: "target", title: "Weight Goal")
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private func trackingLinkRow(icon: String, title: String) -> some View {
+        HStack {
+            Image(systemName: icon)
+                .font(.system(size: 14))
+                .foregroundStyle(AppColors.gold)
+                .frame(width: 32, height: 32)
+                .glassGem(.circle)
+
+            Text(title)
+                .font(.subheadline.bold())
+                .foregroundStyle(AppColors.primaryText)
+
+            Spacer()
+
+            Image(systemName: "chevron.right")
+                .font(.caption)
+                .foregroundStyle(AppColors.subtleText.opacity(0.5))
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .deepGlass(.rect(cornerRadius: 16))
     }
 
     // MARK: - Reusable Components

@@ -1,7 +1,7 @@
 // WorkoutView+Ring.swift
 // Super Sets — The Workout Tracker
 //
-// Extension: Rotary lift ring — 10 glass circles that spin like a
+// Extension: Rotary lift ring — 8 glass circles that spin like a
 // revolver cylinder. Includes ring math, drag gesture, lift circles,
 // and the top buttons row (Add Lift + Super Set toggle).
 
@@ -13,7 +13,7 @@ import QuartzCore
 private enum MomentumConfig {
     static let decayRate: Double = 1.5               // exponential friction per second
     static let snapThreshold: Double = 10.0          // deg/s — stop coast & snap
-    static let minimumCoastVelocity: Double = 77.0   // deg/s — below this, just snap
+    static let minimumCoastVelocity: Double = 35.0   // deg/s — below this, just snap
     static let maxCoastDuration: TimeInterval = 8.0
     static let frameInterval: Duration = .milliseconds(8)  // ~120fps
     static let sampleBufferSize: Int = 2
@@ -82,7 +82,12 @@ extension WorkoutView {
         guard !workoutManager.isSuperSetMode else { return }
         let idx = topSlotIndex
         if idx < workoutManager.recentLifts.count {
-            workoutManager.selectLift(workoutManager.recentLifts[idx])
+            let lift = workoutManager.recentLifts[idx]
+            if workoutManager.activeWorkout != nil {
+                workoutManager.selectLift(lift)
+            } else {
+                workoutManager.browseLift(lift)
+            }
         }
     }
 
@@ -216,7 +221,7 @@ extension WorkoutView {
                 let angle = angleForSlot(index)
                 let x = cos(angle.radians) * ringRadius
                 let y = sin(angle.radians) * ringRadius
-                let isAtTop = (topSlotIndex == index)
+                let isAtTop = !isCoasting && (topSlotIndex == index)
 
                 let distFromTop = abs(angleDifference(angle.degrees + 90, 0))
                 let zOrder = Double(slotCount) - distFromTop / 36.0
@@ -262,8 +267,17 @@ extension WorkoutView {
                 }
             }
 
+            // Arrow indicator below top circle (fixed, does NOT rotate)
+            Image(systemName: "arrowtriangle.up.fill")
+                .font(.system(size: 24))
+                .foregroundStyle(AppColors.gold)
+                .offset(y: -ringRadius + circleSize / 2 + 16)
+
             // Center input panel (fixed, does NOT rotate)
-            if workoutManager.isSuperSetMode && !workoutManager.superSetLifts.isEmpty {
+            // Timer takes priority so it's accessible even during super sets
+            if showTimerInCenter && workoutManager.activeWorkout != nil {
+                centerTimerPanel
+            } else if workoutManager.isSuperSetMode && !workoutManager.superSetLifts.isEmpty {
                 superSetCenterPanel
             } else {
                 radialCenterInputPanel
@@ -358,14 +372,39 @@ extension WorkoutView {
 
             Spacer()
 
-            // Unit label (center)
-            if let unit = workoutManager.userProfile?.preferredUnit {
-                Text("Weight in \(unit.rawValue)")
-                    .font(.caption2)
-                    .foregroundStyle(AppColors.subtleText)
+            // Lift name in top row
+            if let lift = workoutManager.selectedLift {
+                Text(lift.name)
+                    .font(.system(size: 17, weight: .bold, design: .rounded))
+                    .foregroundStyle(AppColors.primaryText)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
             }
 
             Spacer()
+
+            // Timer — upper right (visible only during active workout)
+            if workoutManager.activeWorkout != nil {
+                Button {
+                    AppAnimation.perform(AppAnimation.spring) {
+                        showTimerInCenter.toggle()
+                    }
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                } label: {
+                    VStack(spacing: 2) {
+                        Image(systemName: "timer")
+                            .font(.system(size: 14, weight: .bold))
+                        Text("Timer")
+                            .font(.system(size: 7, weight: .semibold))
+                    }
+                    .foregroundStyle(timerManager.isRunning ? AppColors.positive : AppColors.accent)
+                    .frame(width: 50, height: 50)
+                    .deepGlass(.circle, isActive: timerManager.isRunning)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Rest timer")
+                .accessibilityValue(timerManager.isRunning ? "Running, \(timerManager.formattedTime) remaining" : "Stopped")
+            }
 
             // Super Set — upper right
             Button {
@@ -409,7 +448,7 @@ extension WorkoutView {
             .lineLimit(2)
             .minimumScaleFactor(0.7)
             .multilineTextAlignment(.center)
-            .foregroundStyle(inSuperSet ? AppColors.gold : (isTop ? AppColors.accent : AppColors.primaryText))
+            .foregroundStyle(inSuperSet ? AppColors.gold : (isTop ? AppColors.gold : AppColors.primaryText))
             .frame(width: size, height: size)
             .deepGlass(.circle, isActive: isTop || inSuperSet)
             .accessibilityLabel(lift.name)

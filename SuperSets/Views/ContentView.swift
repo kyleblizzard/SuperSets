@@ -55,8 +55,8 @@ struct ContentView: View {
                     .appBackground()
             }
             
-            Tab("Calendar", systemImage: "calendar") {
-                CalendarView(workoutManager: workoutManager)
+            Tab("Journal", systemImage: "book.fill") {
+                JournalView(workoutManager: workoutManager)
                     .appBackground()
             }
             

@@ -109,8 +109,21 @@ final class WorkoutSet {
     
     // MARK: Computed Properties
     
-    /// Formatted display string: "185 × 8", "W 135 × 10", "185 × 8 F DS", etc.
+    /// Whether this set is a cardio set (minutes-based).
+    var isCardio: Bool {
+        liftDefinition?.muscleGroup == .cardio
+    }
+
+    /// Formatted display string: "185 × 8", "W 135 × 10", "185 × 8 F DS", or "30 min" for cardio.
     var formattedDisplay: String {
+        // Cardio sets display as "X min" (weight stores minutes, reps = 1)
+        if isCardio {
+            let mins = weight.truncatingRemainder(dividingBy: 1) == 0
+                ? String(format: "%.0f", weight)
+                : String(format: "%.1f", weight)
+            return "\(mins) min"
+        }
+
         let weightStr: String
         if weight.truncatingRemainder(dividingBy: 1) == 0 {
             weightStr = String(format: "%.0f", weight)

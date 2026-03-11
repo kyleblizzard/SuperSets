@@ -16,6 +16,7 @@
 //   WorkoutManager+Analytics.swift  — PRs, progression, volume, stats, summary
 //   WorkoutManager+BodyTracking.swift — Body weight, calorie estimates
 
+import ActivityKit
 import Foundation
 import SwiftData
 import SwiftUI
@@ -28,7 +29,7 @@ final class WorkoutManager {
     // MARK: - Constants
 
     /// Number of lift slots on the rotary ring.
-    static let ringSlotCount = 10
+    static let ringSlotCount = 8
 
     // MARK: - Dependencies
 
@@ -43,7 +44,7 @@ final class WorkoutManager {
     /// The lift currently selected for input.
     var selectedLift: LiftDefinition?
 
-    /// Most recently used lifts for circle buttons (max 10, newest first).
+    /// Most recently used lifts for circle buttons (max 8, newest first).
     var recentLifts: [LiftDefinition] = []
 
     // MARK: - Input State
@@ -91,6 +92,18 @@ final class WorkoutManager {
     /// Per-lift reps input keyed by lift name.
     var superSetReps: [String: String] = [:]
 
+    // MARK: - Live Activity State
+
+    /// The active Live Activity for the current workout (lock screen + Dynamic Island).
+    var liveActivity: Activity<WorkoutActivityAttributes>?
+
+    // MARK: - Cardio Detection
+
+    /// Whether a lift is a cardio exercise (time-based logging instead of weight/reps).
+    func isCardioLift(_ lift: LiftDefinition) -> Bool {
+        lift.muscleGroup == .cardio
+    }
+
     // MARK: - Initialization
 
     /// Sets up the manager with a SwiftData context and loads initial state.
@@ -106,6 +119,7 @@ final class WorkoutManager {
         loadActiveWorkout()
         loadRecentLifts()
         loadUserProfile()
+        resumeLiveActivity()
     }
 
     // MARK: - Workout Lifecycle
@@ -124,6 +138,8 @@ final class WorkoutManager {
         previousSets = []
         previousWorkoutDate = nil
 
+        startLiveActivity(workoutDate: workout.date)
+
         save()
     }
 
@@ -139,6 +155,7 @@ final class WorkoutManager {
         workout.notes = notes?.isEmpty == true ? nil : notes
 
         exitSuperSetMode()
+        endLiveActivity()
 
         let completed = workout
         activeWorkout = nil
@@ -199,6 +216,7 @@ final class WorkoutManager {
 
         repsInput = ""
 
+        updateLiveActivity()
         save()
         return true
     }
@@ -243,6 +261,17 @@ final class WorkoutManager {
 
     // MARK: - Lift Selection
 
+    /// Browse a lift without starting a workout.
+    /// Sets selectedLift and loads comparison data, but does NOT start a workout.
+    /// Used when spinning the ring with no active workout.
+    func browseLift(_ lift: LiftDefinition) {
+        selectedLift = lift
+        loadComparisonData(for: lift)
+        if !recentLifts.contains(where: { $0.name == lift.name }) {
+            addToRecentLifts(lift)
+        }
+    }
+
     /// Select a lift for the current workout.
     /// In super set mode, toggles the lift in the SS group instead.
     /// Auto-starts a workout if none is active.
@@ -264,6 +293,7 @@ final class WorkoutManager {
         }
 
         lift.lastUsedDate = Date()
+        updateLiveActivity()
         save()
     }
 
@@ -375,7 +405,7 @@ final class WorkoutManager {
         }
     }
 
-    /// Load the 10 most recently used lifts for circle buttons.
+    /// Load the 8 most recently used lifts for circle buttons.
     private func loadRecentLifts() {
         guard let context = modelContext else { return }
 
@@ -383,7 +413,7 @@ final class WorkoutManager {
             predicate: #Predicate<LiftDefinition> { $0.lastUsedDate != nil },
             sortBy: [SortDescriptor(\.lastUsedDate, order: .reverse)]
         )
-        descriptor.fetchLimit = 10
+        descriptor.fetchLimit = 8
 
         do {
             recentLifts = try context.fetch(descriptor)
@@ -460,6 +490,8 @@ final class WorkoutManager {
     /// and we bail early if any PR is beaten (showing the most impressive one).
     private func checkForNewPR(weight: Double, reps: Int, lift: LiftDefinition) {
         guard let context = modelContext else { return }
+        // Cardio lifts store minutes as weight — PR detection doesn't apply
+        guard !isCardioLift(lift) else { return }
 
         let liftName = lift.name
 
@@ -619,6 +651,7 @@ final class WorkoutManager {
             superSetReps[lift.name] = ""
         }
 
+        updateLiveActivity()
         save()
         return true
     }
@@ -767,6 +800,73 @@ final class WorkoutManager {
         }
 
         save()
+    }
+
+    // MARK: - Live Activity
+
+    /// Start a Live Activity for the lock screen / Dynamic Island.
+    func startLiveActivity(workoutDate: Date) {
+        guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
+
+        let attributes = WorkoutActivityAttributes(workoutStartDate: workoutDate)
+        let initialState = WorkoutActivityAttributes.ContentState(
+            currentLiftName: selectedLift?.name ?? "Workout",
+            setCount: 0,
+            lastSetDisplay: ""
+        )
+
+        do {
+            let activity = try Activity.request(
+                attributes: attributes,
+                content: .init(state: initialState, staleDate: nil),
+                pushType: nil
+            )
+            liveActivity = activity
+        } catch {
+            print("Live Activity start error: \(error)")
+        }
+    }
+
+    /// Update the Live Activity with current workout state.
+    func updateLiveActivity() {
+        guard let activity = liveActivity else { return }
+
+        let setCount = activeWorkout?.sets.count ?? 0
+        let lastSet = activeWorkout?.sets
+            .sorted(by: { $0.timestamp < $1.timestamp })
+            .last
+
+        let state = WorkoutActivityAttributes.ContentState(
+            currentLiftName: selectedLift?.name ?? "Workout",
+            setCount: setCount,
+            lastSetDisplay: lastSet?.formattedDisplay ?? ""
+        )
+
+        Task {
+            await activity.update(.init(state: state, staleDate: nil))
+        }
+    }
+
+    /// End the Live Activity when the workout finishes.
+    func endLiveActivity() {
+        guard let activity = liveActivity else { return }
+
+        let finalState = WorkoutActivityAttributes.ContentState(
+            currentLiftName: "Workout Complete",
+            setCount: activeWorkout?.sets.count ?? 0,
+            lastSetDisplay: ""
+        )
+
+        Task {
+            await activity.end(.init(state: finalState, staleDate: nil), dismissalPolicy: .after(.now + 30))
+        }
+        liveActivity = nil
+    }
+
+    /// Resume an existing Live Activity on app relaunch.
+    func resumeLiveActivity() {
+        let activities = Activity<WorkoutActivityAttributes>.activities
+        liveActivity = activities.first
     }
 
     // MARK: - Persistence

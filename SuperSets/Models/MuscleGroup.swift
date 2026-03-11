@@ -127,6 +127,27 @@ enum MuscleGroup: String, CaseIterable, Codable, Identifiable {
     ]
 }
 
+// MARK: - AnatomySide
+
+/// Which side of the anatomy figure a muscle group appears on.
+enum AnatomySide { case front, back, both }
+
+extension MuscleGroup {
+    /// Which side of the anatomy figure this muscle group belongs to.
+    var anatomySide: AnatomySide? {
+        switch self {
+        case .chest, .abs, .quads, .biceps:
+            return .front
+        case .lats, .traps, .lowerBack, .neck, .glutes, .legBiceps:
+            return .back
+        case .shoulders, .calves, .triceps:
+            return .both
+        case .cardio, .stretching:
+            return nil // not on figure
+        }
+    }
+}
+
 // MARK: - MuscleGroupSection
 
 /// A named section of muscle groups for the grouped grid layout.

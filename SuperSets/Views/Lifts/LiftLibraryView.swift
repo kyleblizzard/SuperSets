@@ -28,6 +28,9 @@ struct LiftLibraryView: View {
     @State private var searchText = ""
     @State private var showingCustomLift = false
     @State private var customLiftName = ""
+    @State private var viewMode: ViewMode = .figure
+
+    private enum ViewMode: String { case figure, grid }
 
     // MARK: Queries
 
@@ -81,6 +84,13 @@ struct LiftLibraryView: View {
         }
     }
 
+    // MARK: - Trained Muscles Today
+
+    private var trainedMuscleGroupsToday: Set<MuscleGroup> {
+        guard let workout = workoutManager.activeWorkout else { return [] }
+        return Set(workout.sets.compactMap { $0.liftDefinition?.muscleGroup })
+    }
+
     // MARK: - Main Picker View (Search + Recents + Grouped Grid)
 
     private var mainPickerView: some View {
@@ -93,13 +103,34 @@ struct LiftLibraryView: View {
                     // Search results
                     searchResultsList
                 } else {
+                    // View mode toggle + recents
+                    HStack {
+                        if !workoutManager.recentLifts.isEmpty {
+                            // Keep recents label left-aligned
+                        }
+                        Spacer()
+                        viewModeToggle
+                    }
+                    .padding(.horizontal, 16)
+
                     // Recent lifts (when not searching, when recents exist)
                     if !workoutManager.recentLifts.isEmpty {
                         recentLiftsRow
                     }
 
-                    // Grouped muscle grid
-                    groupedMuscleGrid
+                    // Anatomy figure or grouped grid
+                    if viewMode == .figure {
+                        AnatomyFigureView(
+                            trainedMuscleGroups: trainedMuscleGroupsToday,
+                            onSelectGroup: { group in
+                                AppAnimation.perform(AppAnimation.spring) {
+                                    selectedGroup = group
+                                }
+                            }
+                        )
+                    } else {
+                        groupedMuscleGrid
+                    }
                 }
 
                 Spacer().frame(height: 20)
@@ -107,6 +138,39 @@ struct LiftLibraryView: View {
             .padding(.top, 4)
         }
         .scrollDismissesKeyboard(.interactively)
+    }
+
+    // MARK: - View Mode Toggle
+
+    private var viewModeToggle: some View {
+        HStack(spacing: 0) {
+            viewModeButton(icon: "figure.stand", mode: .figure)
+            viewModeButton(icon: "square.grid.2x2", mode: .grid)
+        }
+        .padding(3)
+        .glassSlab(.capsule)
+    }
+
+    private func viewModeButton(icon: String, mode: ViewMode) -> some View {
+        Button {
+            guard viewMode != mode else { return }
+            AppAnimation.perform(AppAnimation.spring) {
+                viewMode = mode
+            }
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        } label: {
+            Image(systemName: icon)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(viewMode == mode ? AppColors.gold : AppColors.subtleText)
+                .frame(width: 32, height: 28)
+                .background {
+                    if viewMode == mode {
+                        Capsule()
+                            .fill(AppColors.gold.opacity(0.15))
+                    }
+                }
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Search Bar

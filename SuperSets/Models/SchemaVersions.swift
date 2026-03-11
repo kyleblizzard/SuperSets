@@ -19,7 +19,16 @@ enum SchemaV1: VersionedSchema {
             WorkoutSet.self,
             UserProfile.self,
             WeightEntry.self,
-            WorkoutSplit.self
+            WorkoutSplit.self,
+            BodyMeasurement.self,
+            BodyFatEntry.self,
+            SplitSchedule.self,
+            WaterEntry.self,
+            MedicationLog.self,
+            SleepEntry.self,
+            StepsEntry.self,
+            CalorieEntry.self,
+            GoalSetting.self
         ]
     }
 }

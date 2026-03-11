@@ -15,17 +15,23 @@ extension WorkoutView {
 
     var combinedSetsView: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // Header
-            if workoutManager.selectedLift != nil {
+            // Header with lift name
+            if let lift = workoutManager.selectedLift {
                 HStack(spacing: 6) {
                     Circle()
                         .fill(AppColors.gold)
                         .frame(width: 8, height: 8)
                         .glassGem(.circle)
 
-                    Text("Sets")
+                    Text(lift.name)
                         .font(.subheadline.bold())
                         .foregroundStyle(AppColors.primaryText)
+
+                    Spacer()
+
+                    Text("Sets")
+                        .font(.caption.bold())
+                        .foregroundStyle(AppColors.subtleText)
                 }
             }
 
