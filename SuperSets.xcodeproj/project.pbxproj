@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		CC07000D2F50000100A89AF7 /* SuperSetsWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = CC0700012F50000100A89AF7 /* SuperSetsWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		CC07000B2F50000100A89AF7 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -23,6 +27,7 @@
 			dstPath = "";
 			dstSubfolderSpec = 13;
 			files = (
+				CC07000D2F50000100A89AF7 /* SuperSetsWidgetExtension.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -221,6 +226,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 4HTHBQV6RN;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = WidgetExtensionInfo.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = SuperSets;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -249,6 +255,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 4HTHBQV6RN;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = WidgetExtensionInfo.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = SuperSets;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
