@@ -118,6 +118,16 @@ extension WorkoutView {
             .accessibilityHint("Records the current weight and reps as a set")
         }
         .frame(width: centerSize, height: centerSize)
+        .onAppear {
+            // Ensure input strings match wheel defaults so LOG works
+            // without the user having to scroll first.
+            if workoutManager.weightInput.isEmpty {
+                workoutManager.weightInput = formatWheelWeight(wheelWeight)
+            }
+            if workoutManager.repsInput.isEmpty {
+                workoutManager.repsInput = "\(wheelReps)"
+            }
+        }
         .onChange(of: wheelWeight) { _, newValue in
             workoutManager.weightInput = formatWheelWeight(newValue)
         }
