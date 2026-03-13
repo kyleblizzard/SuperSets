@@ -68,6 +68,23 @@ enum ActivityLevel: String, Codable, CaseIterable {
     }
 }
 
+/// Weight goal direction — affects daily calorie target.
+enum WeightGoal: String, Codable, CaseIterable {
+    case lose     = "Lose"
+    case maintain = "Maintain"
+    case gain     = "Gain"
+
+    /// Calorie adjustment applied to TDEE.
+    /// -500 for ~1 lb/week loss, +500 for ~1 lb/week gain.
+    var calorieAdjustment: Int {
+        switch self {
+        case .lose:     return -500
+        case .maintain: return 0
+        case .gain:     return 500
+        }
+    }
+}
+
 // MARK: - UserProfile Model
 
 @Model
@@ -107,6 +124,20 @@ final class UserProfile {
 
     /// Default rest timer countdown duration in seconds. Defaults to 90.
     var defaultRestTimerDuration: Int = 90
+
+    // MARK: Nutrition Goals
+
+    /// Weight goal direction: lose, maintain, or gain.
+    var weightGoalRaw: String = "Maintain"
+
+    /// Daily calorie goal. 0 = use TDEE estimate.
+    var calorieGoal: Int = 0
+    /// Daily protein goal in grams. 0 = auto (30% of calories / 4).
+    var proteinGoal: Double = 0
+    /// Daily carbs goal in grams. 0 = auto (40% of calories / 4).
+    var carbsGoal: Double = 0
+    /// Daily fat goal in grams. 0 = auto (30% of calories / 9).
+    var fatGoal: Double = 0
     
     // MARK: Profile Photo
     
@@ -137,6 +168,12 @@ final class UserProfile {
     var activityLevel: ActivityLevel {
         get { ActivityLevel(rawValue: activityLevelRaw) ?? .moderate }
         set { activityLevelRaw = newValue.rawValue }
+    }
+
+    /// Type-safe access to weight goal direction.
+    var weightGoal: WeightGoal {
+        get { WeightGoal(rawValue: weightGoalRaw) ?? .maintain }
+        set { weightGoalRaw = newValue.rawValue }
     }
     
     /// Height displayed as feet and inches: 5'10"
@@ -184,7 +221,28 @@ final class UserProfile {
     var totalDailyEnergyExpenditure: Int {
         Int(Double(restingMetabolicRate) * activityLevel.multiplier)
     }
-    
+
+    /// Calorie goal: user override, or TDEE + weight goal adjustment.
+    var effectiveCalorieGoal: Int {
+        if calorieGoal > 0 { return calorieGoal }
+        return max(1200, totalDailyEnergyExpenditure + weightGoal.calorieAdjustment)
+    }
+
+    /// Protein goal in grams: user override or 30% of calories / 4.
+    var effectiveProteinGoal: Double {
+        proteinGoal > 0 ? proteinGoal : Double(effectiveCalorieGoal) * 0.30 / 4.0
+    }
+
+    /// Carbs goal in grams: user override or 40% of calories / 4.
+    var effectiveCarbsGoal: Double {
+        carbsGoal > 0 ? carbsGoal : Double(effectiveCalorieGoal) * 0.40 / 4.0
+    }
+
+    /// Fat goal in grams: user override or 30% of calories / 9.
+    var effectiveFatGoal: Double {
+        fatGoal > 0 ? fatGoal : Double(effectiveCalorieGoal) * 0.30 / 9.0
+    }
+
     // MARK: Initializer
     
     /// Creates a new user profile with sensible defaults.
@@ -200,5 +258,10 @@ final class UserProfile {
         self.activityLevelRaw = ActivityLevel.moderate.rawValue
         self.profilePhotoData = nil
         self.startDate = Date()
+        self.weightGoalRaw = WeightGoal.maintain.rawValue
+        self.calorieGoal = 0
+        self.proteinGoal = 0
+        self.carbsGoal = 0
+        self.fatGoal = 0
     }
 }

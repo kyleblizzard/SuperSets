@@ -176,6 +176,27 @@ extension WorkoutManager {
 
     // MARK: Calorie Estimates
 
+    /// Total estimated workout calories burned today.
+    func todayWorkoutCalories() -> Int {
+        guard let context = modelContext else { return 0 }
+        let calendar = Calendar.current
+        let startOfDay = calendar.startOfDay(for: Date())
+
+        let descriptor = FetchDescriptor<Workout>(
+            predicate: #Predicate<Workout> { workout in
+                workout.isActive == false &&
+                workout.date >= startOfDay
+            }
+        )
+
+        do {
+            let workouts = try context.fetch(descriptor)
+            return workouts.reduce(0) { $0 + workoutCalories(for: $1) }
+        } catch {
+            return 0
+        }
+    }
+
     /// Total estimated workout calories burned this week.
     func weeklyWorkoutCalories() -> Int {
         guard let context = modelContext else { return 0 }

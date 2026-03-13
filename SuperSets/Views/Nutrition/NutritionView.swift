@@ -36,6 +36,10 @@ struct NutritionView: View {
         VStack(alignment: .leading, spacing: 12) {
             sectionHeader("Health", icon: "heart.fill")
 
+            healthLink("Food Tracking", icon: "fork.knife", color: AppColors.accent) {
+                FoodTrackingView(workoutManager: workoutManager)
+            }
+
             healthLink("Water Intake", icon: "drop.fill", color: AppColors.accent) {
                 WaterTrackingView(workoutManager: workoutManager)
             }

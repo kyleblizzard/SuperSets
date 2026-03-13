@@ -36,7 +36,6 @@ struct ProgressDashboardView: View {
     @State private var weightInputText = ""
     @State private var weightChartDays = 30
     @State private var personalRecords: [PersonalRecord] = []
-    @State private var weeklyVolumes: [WeeklyVolume] = []
     @Environment(HealthKitManager.self) private var healthKitManager: HealthKitManager?
 
     // MARK: Body
@@ -50,7 +49,7 @@ struct ProgressDashboardView: View {
                 bodyTrackingLinksSection
                 bodyWeightSection
                 personalRecordsSection
-                volumeTrendsSection
+                caloriesBurnedTodaySection
                 calorieEstimatesSection
 
                 Spacer().frame(height: 40)
@@ -94,7 +93,6 @@ struct ProgressDashboardView: View {
 
     private func refreshData() {
         personalRecords = workoutManager.calculateAllPRs()
-        weeklyVolumes = workoutManager.weeklyVolumeTrends()
     }
 
     // MARK: - Section 1: Workout Stats Summary
@@ -623,50 +621,116 @@ struct ProgressDashboardView: View {
         .frame(height: 180)
     }
 
-    // MARK: - Section 5: Volume Trends
+    // MARK: - Section 5: Calories Burned Today
 
-    private var volumeTrendsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            sectionHeader("Volume Trends", icon: "chart.bar.fill")
+    private var caloriesBurnedTodaySection: some View {
+        VStack(spacing: 12) {
+            sectionHeader("Calories Burned Today", icon: "flame.fill")
 
-            Text("Total weight x reps per week")
-                .font(.caption)
-                .foregroundStyle(AppColors.subtleText)
+            if let profile = workoutManager.userProfile {
+                let bmrSoFar = bmrBurnedSoFar(profile: profile)
+                let stepsCal = stepCalories(profile: profile)
+                let workoutCal = workoutManager.todayWorkoutCalories()
+                let total = bmrSoFar + stepsCal + workoutCal
 
-            if weeklyVolumes.isEmpty || weeklyVolumes.allSatisfy({ $0.totalVolume == 0 }) {
-                Text("Complete workouts to see trends")
-                    .font(.subheadline)
-                    .foregroundStyle(AppColors.subtleText)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 20)
-            } else {
-                Chart(weeklyVolumes) { week in
-                    BarMark(
-                        x: .value("Week", week.label),
-                        y: .value("Volume", week.totalVolume)
-                    )
-                    .foregroundStyle(AppColors.accent.gradient)
-                    .cornerRadius(4)
+                VStack(spacing: 4) {
+                    Text("\(total)")
+                        .font(.system(size: 40, weight: .bold, design: .rounded).monospacedDigit())
+                        .foregroundStyle(AppColors.accent)
+                    Text("estimated calories burned")
+                        .font(.subheadline)
+                        .foregroundStyle(AppColors.subtleText)
                 }
-                .chartXAxis {
-                    AxisMarks { mark in
-                        AxisValueLabel()
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 14)
+                .deepGlass(.rect(cornerRadius: 16))
+
+                // Breakdown rows
+                calorieBreakdownRow("BMR (so far today)", value: bmrSoFar, detail: "Prorated to current hour")
+                calorieBreakdownRow("Steps", value: stepsCal, detail: "\(healthKitManager?.todaySteps ?? 0) steps")
+                calorieBreakdownRow("Workouts", value: workoutCal, detail: "MET 5.5 × weight × duration")
+
+                Divider().background(AppColors.divider)
+
+                // Weight goal slider
+                VStack(spacing: 8) {
+                    HStack {
+                        Text("Weight Goal")
+                            .font(.subheadline)
                             .foregroundStyle(AppColors.subtleText)
+                        Spacer()
+                        Text(profile.weightGoal.rawValue)
+                            .font(.subheadline.bold())
+                            .foregroundStyle(AppColors.accent)
+                    }
+
+                    Picker("", selection: Binding(
+                        get: { profile.weightGoal },
+                        set: { profile.weightGoal = $0 }
+                    )) {
+                        ForEach(WeightGoal.allCases, id: \.self) { goal in
+                            Text(goal.rawValue).tag(goal)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+
+                    HStack {
+                        Text("Target intake")
+                            .font(.caption)
+                            .foregroundStyle(AppColors.subtleText)
+                        Spacer()
+                        Text("\(profile.effectiveCalorieGoal) cal/day")
+                            .font(.caption.bold().monospacedDigit())
+                            .foregroundStyle(AppColors.primaryText)
+                    }
+
+                    if profile.weightGoal != .maintain {
+                        Text(profile.weightGoal == .lose ? "TDEE − 500 cal" : "TDEE + 500 cal")
+                            .font(.caption2)
+                            .foregroundStyle(AppColors.subtleText.opacity(0.6))
                     }
                 }
-                .chartYAxis {
-                    AxisMarks { mark in
-                        AxisValueLabel()
-                            .foregroundStyle(AppColors.subtleText)
-                        AxisGridLine()
-                            .foregroundStyle(AppColors.divider)
-                    }
-                }
-                .frame(height: 180)
             }
         }
         .padding(16)
         .glassCard()
+    }
+
+    /// BMR prorated to the current hour of the day.
+    private func bmrBurnedSoFar(profile: UserProfile) -> Int {
+        let calendar = Calendar.current
+        let hour = calendar.component(.hour, from: Date())
+        let minute = calendar.component(.minute, from: Date())
+        let fractionOfDay = (Double(hour) + Double(minute) / 60.0) / 24.0
+        return Int(Double(profile.restingMetabolicRate) * fractionOfDay)
+    }
+
+    /// Calories burned from steps using 0.04 cal per step (average).
+    private func stepCalories(profile: UserProfile) -> Int {
+        let steps = healthKitManager?.todaySteps ?? 0
+        // ~0.04 cal/step for average adult, scaled by body weight
+        let calPerStep = 0.04 * (profile.bodyWeightKg / 70.0)
+        return Int(Double(steps) * calPerStep)
+    }
+
+    private func calorieBreakdownRow(_ label: String, value: Int, detail: String) -> some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(label)
+                    .font(.subheadline)
+                    .foregroundStyle(AppColors.subtleText)
+                Text(detail)
+                    .font(.caption2)
+                    .foregroundStyle(AppColors.subtleText.opacity(0.6))
+            }
+            Spacer()
+            Text("\(value)")
+                .font(.body.bold().monospacedDigit())
+                .foregroundStyle(AppColors.primaryText)
+            Text("cal")
+                .font(.caption)
+                .foregroundStyle(AppColors.subtleText)
+        }
     }
 
     // MARK: - Section 6: Calorie Estimates

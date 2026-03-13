@@ -56,7 +56,7 @@ struct SuperSetsApp: App {
     @State private var healthKitManager = HealthKitManager()
 
     init() {
-        let schema = Schema(versionedSchema: SchemaV2.self)
+        let schema = Schema(versionedSchema: SchemaV3.self)
         // Local-only until iCloud capability is added in Xcode.
         // Once provisioned, change to: ModelConfiguration(cloudKitDatabase: .private("iCloud.org.kyleblizzard.SuperSets"))
         let config = ModelConfiguration()

@@ -62,15 +62,42 @@ enum SchemaV2: VersionedSchema {
     }
 }
 
+// MARK: - Schema V3 (Food Tracking)
+// Adds FoodEntry model + new UserProfile nutrition goal columns.
+
+enum SchemaV3: VersionedSchema {
+    static var versionIdentifier = Schema.Version(3, 0, 0)
+    static var models: [any PersistentModel.Type] {
+        [
+            LiftDefinition.self,
+            Workout.self,
+            WorkoutSet.self,
+            UserProfile.self,
+            WeightEntry.self,
+            WorkoutSplit.self,
+            BodyMeasurement.self,
+            BodyFatEntry.self,
+            SplitSchedule.self,
+            WaterEntry.self,
+            MedicationLog.self,
+            SleepEntry.self,
+            StepsEntry.self,
+            CalorieEntry.self,
+            GoalSetting.self,
+            FoodEntry.self
+        ]
+    }
+}
+
 // MARK: - Migration Plan
 
 enum SuperSetsMigrationPlan: SchemaMigrationPlan {
     static var schemas: [any VersionedSchema.Type] {
-        [SchemaV1.self, SchemaV2.self]
+        [SchemaV1.self, SchemaV2.self, SchemaV3.self]
     }
 
     static var stages: [MigrationStage] {
-        [migrateV1toV2]
+        [migrateV1toV2, migrateV2toV3]
     }
 
     // Lightweight: SwiftData infers the diff automatically.
@@ -78,5 +105,11 @@ enum SuperSetsMigrationPlan: SchemaMigrationPlan {
     static let migrateV1toV2 = MigrationStage.lightweight(
         fromVersion: SchemaV1.self,
         toVersion: SchemaV2.self
+    )
+
+    // Lightweight: adds FoodEntry table + UserProfile nutrition goal columns.
+    static let migrateV2toV3 = MigrationStage.lightweight(
+        fromVersion: SchemaV2.self,
+        toVersion: SchemaV3.self
     )
 }
