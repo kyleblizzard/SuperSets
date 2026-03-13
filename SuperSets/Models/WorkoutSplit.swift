@@ -18,16 +18,16 @@ final class WorkoutSplit {
     // MARK: Properties
 
     /// The name of this split (e.g., "Push Day", "Upper Body A").
-    var name: String
+    var name: String = ""
 
     /// JSON-encoded array of lift names in workout order.
-    var liftNamesJSON: Data
+    var liftNamesJSON: Data = Data()
 
     /// When this split was created.
-    var dateCreated: Date
+    var dateCreated: Date = Date()
 
     /// True for pre-seeded templates, false for user-created splits.
-    var isPreset: Bool
+    var isPreset: Bool = false
 
     // MARK: Computed Properties
 

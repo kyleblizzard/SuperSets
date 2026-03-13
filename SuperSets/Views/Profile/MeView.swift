@@ -31,8 +31,6 @@ struct MeView: View {
                     profileHeader
                     personalInfoSection
                     measurementsSection
-                    rmrSection
-                    healthSection
                     Spacer().frame(height: 40)
                 }
                 .padding(.horizontal, 16)
@@ -192,95 +190,6 @@ struct MeView: View {
         }
         .padding(16)
         .glassCard()
-    }
-
-    // MARK: - RMR Section
-
-    /// Resting Metabolic Rate displayed in a deep glass orb.
-    private var rmrSection: some View {
-        VStack(spacing: 14) {
-            sectionHeader("Resting Metabolic Rate", icon: "flame.fill")
-
-            if let profile = workoutManager.userProfile {
-                VStack(spacing: 4) {
-                    Text("\(profile.restingMetabolicRate)")
-                        .font(.system(size: 48, weight: .bold, design: .rounded).monospacedDigit())
-                        .foregroundStyle(AppColors.accent)
-
-                    Text("calories / day at rest")
-                        .font(.subheadline)
-                        .foregroundStyle(AppColors.subtleText)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 16)
-                .deepGlass(.rect(cornerRadius: 16))
-
-                Text("Mifflin-St Jeor equation")
-                    .font(.caption2)
-                    .foregroundStyle(AppColors.subtleText.opacity(0.6))
-            }
-        }
-        .padding(20)
-        .frame(maxWidth: .infinity)
-        .glassCard()
-    }
-
-    // MARK: - Health Section
-
-    private var healthSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            sectionHeader("Health", icon: "heart.fill")
-
-            healthLink("Water Intake", icon: "drop.fill", color: AppColors.accent) {
-                WaterTrackingView(workoutManager: workoutManager)
-            }
-
-            healthLink("Sleep", icon: "bed.double.fill", color: AppColors.accent) {
-                SleepView(workoutManager: workoutManager)
-            }
-
-            healthLink("Medications & Supplements", icon: "pill.fill", color: AppColors.accent) {
-                MedicationView(workoutManager: workoutManager)
-            }
-
-            healthLink("Injections", icon: "syringe.fill", color: AppColors.accent) {
-                InjectionsView(workoutManager: workoutManager)
-            }
-
-            healthLink("Split Schedule", icon: "calendar.badge.clock", color: AppColors.accent) {
-                SplitScheduleView(workoutManager: workoutManager)
-            }
-        }
-        .padding(16)
-        .glassCard()
-    }
-
-    private func healthLink<Destination: View>(_ title: String, icon: String, color: Color, @ViewBuilder destination: @escaping () -> Destination) -> some View {
-        NavigationLink {
-            destination()
-        } label: {
-            HStack(spacing: 12) {
-                Image(systemName: icon)
-                    .font(.system(size: 12))
-                    .foregroundStyle(AppColors.gold)
-                    .frame(width: 28, height: 28)
-                    .glassGem(.circle)
-
-                Text(title)
-                    .font(.subheadline.bold())
-                    .foregroundStyle(AppColors.primaryText)
-
-                Spacer()
-
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundStyle(AppColors.subtleText)
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
-            .deepGlass(.rect(cornerRadius: 12))
-        }
-        .buttonStyle(.plain)
     }
 
     // MARK: - Reusable Components

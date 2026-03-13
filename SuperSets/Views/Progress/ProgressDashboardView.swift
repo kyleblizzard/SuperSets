@@ -46,6 +46,7 @@ struct ProgressDashboardView: View {
         ScrollView {
             VStack(spacing: 16) {
                 statsCard
+                rmrSection
                 bodyTrackingLinksSection
                 bodyWeightSection
                 personalRecordsSection
@@ -152,6 +153,37 @@ struct ProgressDashboardView: View {
         .frame(maxWidth: .infinity)
         .padding(.vertical, 10)
         .deepGlass(.rect(cornerRadius: 12))
+    }
+
+    // MARK: - RMR Section
+
+    /// Resting Metabolic Rate — moved from MeView for Stats tab visibility.
+    private var rmrSection: some View {
+        VStack(spacing: 14) {
+            sectionHeader("Resting Metabolic Rate", icon: "flame.fill")
+
+            if let profile = workoutManager.userProfile {
+                VStack(spacing: 4) {
+                    Text("\(profile.restingMetabolicRate)")
+                        .font(.system(size: 48, weight: .bold, design: .rounded).monospacedDigit())
+                        .foregroundStyle(AppColors.accent)
+
+                    Text("calories / day at rest")
+                        .font(.subheadline)
+                        .foregroundStyle(AppColors.subtleText)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 16)
+                .deepGlass(.rect(cornerRadius: 16))
+
+                Text("Mifflin-St Jeor equation")
+                    .font(.caption2)
+                    .foregroundStyle(AppColors.subtleText.opacity(0.6))
+            }
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity)
+        .glassCard()
     }
 
     // MARK: - Section 2: Body Weight Tracking

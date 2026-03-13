@@ -17,12 +17,12 @@ enum SleepSource: String, Codable, CaseIterable {
 
 @Model
 final class SleepEntry {
-    var date: Date
-    var bedtime: Date
-    var wakeTime: Date
+    var date: Date = Date()
+    var bedtime: Date = Date()
+    var wakeTime: Date = Date()
     /// 1-5 quality rating (optional).
     var quality: Int?
-    var sourceRaw: String
+    var sourceRaw: String = "Manual"
 
     var source: SleepSource {
         get { SleepSource(rawValue: sourceRaw) ?? .manual }

@@ -2,16 +2,45 @@
 // Super Sets — The Workout Tracker
 //
 // SwiftData versioned schema definitions and migration plan.
-// V1 freezes the initial schema so future changes can migrate cleanly.
+//
+// V1 — Frozen at v0.085, Mar 2026. Local SQLite, 15 models.
+// V2 — CloudKit-compatible: declaration-site defaults on all
+//      non-optional properties, @Attribute(.externalStorage) removed.
 
 import SwiftData
 
-// MARK: - Schema V1 (Initial)
-// Frozen: v0.065, Feb 2026
-// Models: LiftDefinition, Workout, WorkoutSet, UserProfile, WeightEntry
+// MARK: - Schema V1 (Frozen — local SQLite only)
+// Do not modify. Exists so SwiftData can compute the V1→V2 diff.
 
 enum SchemaV1: VersionedSchema {
     static var versionIdentifier = Schema.Version(1, 0, 0)
+    static var models: [any PersistentModel.Type] {
+        [
+            LiftDefinition.self,
+            Workout.self,
+            WorkoutSet.self,
+            UserProfile.self,
+            WeightEntry.self,
+            WorkoutSplit.self,
+            BodyMeasurement.self,
+            BodyFatEntry.self,
+            SplitSchedule.self,
+            WaterEntry.self,
+            MedicationLog.self,
+            SleepEntry.self,
+            StepsEntry.self,
+            CalorieEntry.self,
+            GoalSetting.self
+        ]
+    }
+}
+
+// MARK: - Schema V2 (CloudKit-compatible)
+// Same 15 models after adding declaration-site defaults
+// and removing @Attribute(.externalStorage) from UserProfile.
+
+enum SchemaV2: VersionedSchema {
+    static var versionIdentifier = Schema.Version(2, 0, 0)
     static var models: [any PersistentModel.Type] {
         [
             LiftDefinition.self,
@@ -37,13 +66,17 @@ enum SchemaV1: VersionedSchema {
 
 enum SuperSetsMigrationPlan: SchemaMigrationPlan {
     static var schemas: [any VersionedSchema.Type] {
-        [SchemaV1.self]
+        [SchemaV1.self, SchemaV2.self]
     }
 
     static var stages: [MigrationStage] {
-        // No migrations needed yet — V1 is the initial schema.
-        // Future versions add stages here, e.g.:
-        // migrateV1toV2
-        []
+        [migrateV1toV2]
     }
+
+    // Lightweight: SwiftData infers the diff automatically.
+    // Changes: declaration-site defaults added, .externalStorage removed.
+    static let migrateV1toV2 = MigrationStage.lightweight(
+        fromVersion: SchemaV1.self,
+        toVersion: SchemaV2.self
+    )
 }

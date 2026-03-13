@@ -17,9 +17,9 @@ enum StepsSource: String, Codable, CaseIterable {
 
 @Model
 final class StepsEntry {
-    var date: Date
-    var count: Int
-    var sourceRaw: String
+    var date: Date = Date()
+    var count: Int = 0
+    var sourceRaw: String = "Manual"
 
     var source: StepsSource {
         get { StepsSource(rawValue: sourceRaw) ?? .manual }

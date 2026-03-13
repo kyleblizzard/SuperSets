@@ -104,8 +104,8 @@ struct WorkoutView: View {
 
     var ringSize: CGFloat { min(availableWidth, 380) }
     var ringRadius: CGFloat { ringSize * 0.42 }
-    var circleSize: CGFloat { ringSize * 0.22 }
-    var centerSize: CGFloat { ringSize * 0.62 }
+    var circleSize: CGFloat { ringSize * 0.18 }
+    var centerSize: CGFloat { ringSize * 0.58 }
     /// Number of lift slots on the ring, derived from WorkoutManager constant.
     var slotCount: Int { WorkoutManager.ringSlotCount }
     /// Degrees per slot: 360 / slotCount.

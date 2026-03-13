@@ -25,8 +25,8 @@ final class WeightEntry {
     
     /// The date of this weigh-in.
     /// We store the full Date but typically only care about the calendar day.
-    var date: Date
-    
+    var date: Date = Date()
+
     /// The body weight value, in the user's preferred unit (lbs or kg).
     ///
     /// LEARNING NOTE:
@@ -34,7 +34,7 @@ final class WeightEntry {
     /// The unit (lbs vs kg) is determined by UserProfile.preferredUnit —
     /// we don't store the unit per-entry because all entries should use
     /// the same unit system for chart consistency.
-    var weight: Double
+    var weight: Double = 0
     
     // MARK: Initializer
     

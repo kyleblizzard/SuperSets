@@ -46,14 +46,14 @@ enum SplitDay: String, CaseIterable, Codable, Identifiable {
 
 @Model
 final class SplitSchedule {
-    var name: String
+    var name: String = ""
     /// Stored as comma-separated SplitDay raw values.
-    var patternRaw: String
-    var startDate: Date
-    var isActive: Bool
-    var reminderEnabled: Bool
+    var patternRaw: String = ""
+    var startDate: Date = Date()
+    var isActive: Bool = true
+    var reminderEnabled: Bool = false
     /// Hour and minute stored as "HH:mm" for simplicity.
-    var reminderTimeRaw: String
+    var reminderTimeRaw: String = "08:00"
 
     var pattern: [SplitDay] {
         get {

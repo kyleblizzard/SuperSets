@@ -20,14 +20,14 @@ enum GoalType: String, CaseIterable, Codable, Identifiable {
 
 @Model
 final class GoalSetting {
-    var typeRaw: String
+    var typeRaw: String = "Maintenance"
     /// Target weight in user's preferred unit.
-    var targetWeight: Double
+    var targetWeight: Double = 180
     /// Rate of change in lbs per week (e.g. 1.0 for 1 lb/week).
-    var weeklyRate: Double
+    var weeklyRate: Double = 1.0
     /// Calculated daily calorie target.
-    var dailyCalorieTarget: Int
-    var startDate: Date
+    var dailyCalorieTarget: Int = 2000
+    var startDate: Date = Date()
 
     var type: GoalType {
         get { GoalType(rawValue: typeRaw) ?? .maintenance }

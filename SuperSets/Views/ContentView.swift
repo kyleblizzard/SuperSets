@@ -66,12 +66,17 @@ struct ContentView: View {
                     .appBackground()
             }
 
-            Tab("Progress", systemImage: "chart.line.uptrend.xyaxis", value: 2) {
+            Tab("Stats", systemImage: "chart.line.uptrend.xyaxis", value: 2) {
                 ProgressDashboardView(workoutManager: workoutManager)
                     .appBackground()
             }
 
-            Tab("Me", systemImage: "person.fill", value: 3) {
+            Tab("Nutrition", systemImage: "leaf.fill", value: 3) {
+                NutritionView(workoutManager: workoutManager)
+                    .appBackground()
+            }
+
+            Tab("Me", systemImage: "person.fill", value: 4) {
                 MeView(workoutManager: workoutManager)
                     .appBackground()
             }

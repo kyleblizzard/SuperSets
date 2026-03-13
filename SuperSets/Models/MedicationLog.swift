@@ -40,11 +40,11 @@ enum MedicationFrequency: String, CaseIterable, Codable, Identifiable {
 
 @Model
 final class MedicationLog {
-    var date: Date
-    var name: String
-    var dosage: String
-    var typeRaw: String
-    var frequencyRaw: String
+    var date: Date = Date()
+    var name: String = ""
+    var dosage: String = ""
+    var typeRaw: String = "Supplement"
+    var frequencyRaw: String = "Daily"
     /// 1-5 optional effectiveness rating.
     var effectivenessRating: Int?
     var notes: String?

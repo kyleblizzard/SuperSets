@@ -462,6 +462,14 @@ final class WorkoutManager {
                 return
             }
 
+            // Lifts that appear on the rotary ring for first-time users.
+            let starterLifts: Set<String> = [
+                "Flat Barbell Bench Press", "Incline Dumbbell Press",
+                "Cable Crossover", "Chest Dips",
+                "Pull-ups", "Lat Pulldown",
+                "Barbell Bent-Over Row", "Seated Cable Row"
+            ]
+
             var totalInserted = 0
             for (muscleGroup, liftNames) in PreloadedLifts.catalog {
                 for name in liftNames {
@@ -470,6 +478,9 @@ final class WorkoutManager {
                         muscleGroup: muscleGroup,
                         isCustom: false
                     )
+                    if starterLifts.contains(name) {
+                        lift.lastUsedDate = Date.distantPast
+                    }
                     context.insert(lift)
                     totalInserted += 1
                 }

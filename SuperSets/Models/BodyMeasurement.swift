@@ -66,10 +66,10 @@ enum MeasurementUnit: String, Codable, CaseIterable {
 
 @Model
 final class BodyMeasurement {
-    var date: Date
-    var measurementTypeRaw: String
-    var value: Double
-    var unitRaw: String
+    var date: Date = Date()
+    var measurementTypeRaw: String = "chest"
+    var value: Double = 0
+    var unitRaw: String = "in"
 
     var measurementType: MeasurementType {
         get { MeasurementType(rawValue: measurementTypeRaw) ?? .chest }

@@ -65,12 +65,12 @@ extension WorkoutView {
 
     /// Wheel mode — compact pickers + circular LOG.
     func wheelInputPanel(for lift: LiftDefinition) -> some View {
-        VStack(spacing: 6) {
-            HStack(spacing: 8) {
+        ZStack {
+            HStack(spacing: 16) {
                 // Weight column with label
-                VStack(spacing: 0) {
+                VStack(spacing: 4) {
                     Text("Weight")
-                        .font(.system(size: 9, weight: .bold))
+                        .font(.system(size: 11, weight: .bold))
                         .foregroundStyle(AppColors.subtleText)
                     Picker("Weight", selection: $wheelWeight) {
                         ForEach(weightOptions, id: \.self) { value in
@@ -80,15 +80,15 @@ extension WorkoutView {
                         }
                     }
                     .pickerStyle(.wheel)
-                    .frame(width: 100, height: 132)
+                    .frame(width: 100, height: 140)
                     .clipped()
                     .glassField(cornerRadius: 12)
                 }
 
                 // Reps column with label
-                VStack(spacing: 0) {
+                VStack(spacing: 4) {
                     Text("Reps")
-                        .font(.system(size: 9, weight: .bold))
+                        .font(.system(size: 11, weight: .bold))
                         .foregroundStyle(AppColors.subtleText)
                     Picker("Reps", selection: $wheelReps) {
                         ForEach(1...99, id: \.self) { value in
@@ -98,22 +98,23 @@ extension WorkoutView {
                         }
                     }
                     .pickerStyle(.wheel)
-                    .frame(width: 100, height: 132)
+                    .frame(width: 100, height: 140)
                     .clipped()
                     .glassField(cornerRadius: 12)
                 }
             }
-            .offset(y: -8)
+            .offset(y: -10)
 
-            // LOG button (centered)
+            // LOG button — floating centered over the pickers
             Button { logSetAction() } label: {
                 Text(showSetLogged ? "\u{2713}" : "LOG")
-                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .font(.system(size: 16, weight: .bold, design: .rounded))
                     .foregroundStyle(showSetLogged ? AppColors.positive : AppColors.gold)
-                    .frame(width: 50, height: 50)
+                    .frame(width: 60, height: 60)
                     .deepGlass(.circle)
             }
             .buttonStyle(.plain)
+            .zIndex(1)
             .accessibilityLabel(showSetLogged ? "Set logged" : "Log set")
             .accessibilityHint("Records the current weight and reps as a set")
         }
@@ -141,7 +142,7 @@ extension WorkoutView {
     /// Cardio mode — single "Minutes" wheel picker + LOG button.
     /// Stores minutes as weight and auto-sets reps to 1.
     func cardioInputPanel(for lift: LiftDefinition) -> some View {
-        VStack(spacing: 6) {
+        ZStack {
             VStack(spacing: 0) {
                 Text("Minutes")
                     .font(.system(size: 9, weight: .bold))
@@ -154,21 +155,22 @@ extension WorkoutView {
                     }
                 }
                 .pickerStyle(.wheel)
-                .frame(width: 100, height: 132)
+                .frame(width: 100, height: 140)
                 .clipped()
                 .glassField(cornerRadius: 12)
             }
-            .offset(y: -8)
 
-            // LOG button
+            // LOG button — floating centered
             Button { logCardioAction() } label: {
                 Text(showSetLogged ? "\u{2713}" : "LOG")
-                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .font(.system(size: 16, weight: .bold, design: .rounded))
                     .foregroundStyle(showSetLogged ? AppColors.positive : AppColors.gold)
-                    .frame(width: 50, height: 50)
+                    .frame(width: 60, height: 60)
                     .deepGlass(.circle)
             }
             .buttonStyle(.plain)
+            .zIndex(1)
+            .offset(y: 50)
             .accessibilityLabel(showSetLogged ? "Set logged" : "Log cardio")
             .accessibilityHint("Records the current minutes as a cardio set")
         }

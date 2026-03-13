@@ -10,11 +10,11 @@ import SwiftData
 
 @Model
 final class WaterEntry {
-    var date: Date
+    var date: Date = Date()
     /// Amount in ounces.
-    var amount: Double
+    var amount: Double = 0
     /// Daily goal in ounces.
-    var dailyGoal: Double
+    var dailyGoal: Double = 128
 
     init(date: Date = Date(), amount: Double, dailyGoal: Double = 128) {
         self.date = date

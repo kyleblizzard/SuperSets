@@ -271,17 +271,20 @@ extension WorkoutView {
             Image(systemName: "arrowtriangle.up.fill")
                 .font(.system(size: 24))
                 .foregroundStyle(AppColors.gold)
-                .offset(y: -ringRadius + circleSize / 2 + 16)
+                .offset(y: -ringRadius + circleSize / 2 + 30)
 
             // Center input panel (fixed, does NOT rotate)
             // Timer takes priority so it's accessible even during super sets
-            if showTimerInCenter && workoutManager.activeWorkout != nil {
-                centerTimerPanel
-            } else if workoutManager.isSuperSetMode && !workoutManager.superSetLifts.isEmpty {
-                superSetCenterPanel
-            } else {
-                radialCenterInputPanel
+            Group {
+                if showTimerInCenter && workoutManager.activeWorkout != nil {
+                    centerTimerPanel
+                } else if workoutManager.isSuperSetMode && !workoutManager.superSetLifts.isEmpty {
+                    superSetCenterPanel
+                } else {
+                    radialCenterInputPanel
+                }
             }
+            .offset(y: 0)
         }
         .frame(width: ringSize, height: ringSize)
         .contentShape(Circle().inset(by: -20))

@@ -23,54 +23,56 @@ import SwiftUI
 /// Locked to dark mode for maximum Liquid Glass impact.
 enum AppColors {
 
-    // MARK: Background Colors
+    // MARK: Background Colors (Near-Black)
 
-    static let backgroundTop    = Color(hex: 0x060E1A)
-    static let backgroundMid    = Color(hex: 0x0F2744)
-    static let backgroundBottom = Color(hex: 0x1B3B5A)
+    static let backgroundTop    = Color(hex: 0x08080C)
+    static let backgroundMid    = Color(hex: 0x0F0F16)
+    static let backgroundBottom = Color(hex: 0x181820)
 
-    // MARK: Accent Colors (10% — Primary CTAs only)
+    // MARK: Accent Colors (Gold + Silver)
 
-    static let accent          = Color(hex: 0x2196F3)
-    static let accentSecondary = Color(hex: 0x00BCD4)
+    /// Rich gold — primary CTA: LOG button, selected states, active highlights.
+    static let accent          = Color(hex: 0xD4AF37)
+    /// Chrome silver — secondary: borders, inactive elements, labels.
+    static let accentSecondary = Color(hex: 0xB8C4D0)
 
-    // MARK: Secondary Colors (30% — Section headers, decorative elements, warm accents)
+    // MARK: Secondary Colors (Gold tones)
 
-    /// Warm gold for achievements, secondary accents, section headers.
-    static let gold      = Color(hex: 0xFFD700)
+    /// Bright gold for achievements, badges, section headers.
+    static let gold      = Color(hex: 0xD4AF37)
 
-    /// Warm amber for softer secondary indicators.
-    static let warmAmber = Color(hex: 0xF0C040)
+    /// Lighter gold for softer secondary indicators.
+    static let warmAmber = Color(hex: 0xC9A84C)
 
     // MARK: Semantic Colors
 
     /// Green for positive indicators (improved over previous workout).
     static let positive = Color(hex: 0x4CAF50)
 
-    /// Red for destructive actions and regression indicators.
-    static let danger   = Color(hex: 0xF44336)
+    /// Rose red for destructive actions and regression indicators.
+    static let danger   = Color(hex: 0xE84855)
 
     /// Gray for neutral/equal comparisons.
-    static let neutral  = Color(hex: 0x9E9E9E)
+    static let neutral  = Color(hex: 0x8892A0)
 
     // MARK: Text Colors
 
-    /// Primary text — near-white on dark backgrounds.
-    static let primaryText = Color(hex: 0xE4E6EB)
+    /// Primary text — cool white on dark backgrounds.
+    static let primaryText = Color(hex: 0xE8EAF0)
 
-    /// Secondary/subtle text for labels and hints.
-    static let subtleText  = Color(hex: 0xB0B3B8)
+    /// Secondary/subtle text — silver tone.
+    static let subtleText  = Color(hex: 0x8892A0)
 
     // MARK: Surface & Input Colors
 
-    static let glassBorder = Color(hex: 0x1E4976).opacity(0.8)
-    static let divider     = Color(hex: 0x1E4976)
+    static let glassBorder = Color(hex: 0x404550).opacity(0.9)
+    static let divider     = Color(hex: 0x2A2E36)
 
     /// Background fill for text input fields.
-    static let inputFill   = Color(hex: 0x1A2A3A)
+    static let inputFill   = Color(hex: 0x0C0C12)
 
     /// Border for text input fields.
-    static let inputBorder = Color(hex: 0x2A4A6A)
+    static let inputBorder = Color(hex: 0x3A3E48)
 }
 
 // MARK: - Adaptive Background Gradient (5 Pools)
@@ -92,10 +94,10 @@ struct AppBackground: View {
                 endPoint: .bottomTrailing
             )
 
-            // 2. Upper-right radial pool — teal/sky
+            // 2. Upper-right radial pool — faint gold shimmer
             RadialGradient(
                 colors: [
-                    Color(hex: 0x1A5276).opacity(0.40),
+                    Color(hex: 0x2A2210).opacity(0.30),
                     Color.clear
                 ],
                 center: UnitPoint(x: 0.8, y: 0.15),
@@ -103,10 +105,10 @@ struct AppBackground: View {
                 endRadius: 336
             )
 
-            // 3. Lower-left radial pool — purple/lavender
+            // 3. Lower-left radial pool — cool steel blue
             RadialGradient(
                 colors: [
-                    Color(hex: 0x2C1654).opacity(0.33),
+                    Color(hex: 0x0E1420).opacity(0.35),
                     Color.clear
                 ],
                 center: UnitPoint(x: 0.15, y: 0.75),
@@ -114,37 +116,26 @@ struct AppBackground: View {
                 endRadius: 300
             )
 
-            // 4. Center-bottom radial pool — emerald/sage
+            // 4. Center radial pool — subtle silver haze
             RadialGradient(
                 colors: [
-                    Color(hex: 0x0B3D2E).opacity(0.26),
+                    Color(hex: 0x1A1C22).opacity(0.25),
                     Color.clear
                 ],
-                center: UnitPoint(x: 0.5, y: 0.55),
+                center: UnitPoint(x: 0.5, y: 0.45),
                 startRadius: 0,
-                endRadius: 264
+                endRadius: 280
             )
 
-            // 5. Amber/gold pool — warm accent
+            // 5. Lower-right pool — deep midnight
             RadialGradient(
                 colors: [
-                    Color(hex: 0x5A4010).opacity(0.25),
+                    Color(hex: 0x0C1018).opacity(0.30),
                     Color.clear
                 ],
-                center: UnitPoint(x: 0.7, y: 0.60),
+                center: UnitPoint(x: 0.7, y: 0.65),
                 startRadius: 0,
                 endRadius: 260
-            )
-
-            // 6. Rose/pink pool — soft warmth
-            RadialGradient(
-                colors: [
-                    Color(hex: 0x4A1830).opacity(0.20),
-                    Color.clear
-                ],
-                center: UnitPoint(x: 0.3, y: 0.30),
-                startRadius: 0,
-                endRadius: 220
             )
         }
         .ignoresSafeArea()
@@ -169,85 +160,100 @@ struct DeepGlassModifier: ViewModifier {
     let shape: DeepGlassShape
     var isActive: Bool = false
 
-    private let shadowBase: Double = 0.35
+    private let shadowBase: Double = 0.50
 
     func body(content: Content) -> some View {
         content
             // 1. Base Liquid Glass
             .modifier(GlassShapeModifier(shape: shape, interactive: true))
-            // 2. Contact shadow — tight, close (intensified)
-            .shadow(color: .black.opacity(shadowBase), radius: 3, y: 2)
-            // 3. Lift shadow — medium spread (intensified)
-            .shadow(color: .black.opacity(shadowBase * 0.6), radius: 10, y: 5)
-            // 4. Ambient shadow — wide soft halo (intensified)
-            .shadow(color: .black.opacity(shadowBase * 0.3), radius: 20, y: 8)
-            // 5. Outer glow — light bleeding around glass edge
+            // 2. Bright surface tint — makes button visibly lighter than background
+            .overlay { surfaceTint }
+            // 3. Contact shadow — tight, close
+            .shadow(color: .black.opacity(shadowBase), radius: 4, y: 3)
+            // 4. Lift shadow — medium spread
+            .shadow(color: .black.opacity(shadowBase * 0.6), radius: 12, y: 6)
+            // 5. Ambient shadow — wide soft halo
+            .shadow(color: .black.opacity(shadowBase * 0.3), radius: 24, y: 10)
+            // 6. Outer glow — light bleeding around glass edge
             .overlay { outerGlow }
-            // 6. Rim highlight (1.0pt)
+            // 7. Rim highlight (1.5pt)
             .overlay { rimHighlight }
-            // 7. Inner convex highlight (more pronounced)
+            // 8. Inner convex highlight
             .overlay { innerConvexHighlight }
-            // 8. Active state — glow + scale
+            // 9. Active state — glow + scale
             .shadow(
-                color: isActive ? AppColors.accent.opacity(0.6) : .clear,
-                radius: isActive ? 20 : 0
+                color: isActive ? AppColors.accent.opacity(0.7) : .clear,
+                radius: isActive ? 24 : 0
             )
             .shadow(
-                color: isActive ? Color.white.opacity(0.25) : .clear,
-                radius: isActive ? 8 : 0
+                color: isActive ? Color.white.opacity(0.35) : .clear,
+                radius: isActive ? 10 : 0
             )
             .scaleEffect(isActive ? 1.08 : 1.0)
             .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isActive)
     }
 
-    /// 1.5pt AngularGradient stroke on an outset path — simulates light bleeding around edge.
+    /// Very subtle frosted tint — lets background bleed through.
+    @ViewBuilder
+    private var surfaceTint: some View {
+        switch shape {
+        case .circle:
+            Circle().fill(Color.white.opacity(0.06)).allowsHitTesting(false)
+        case .capsule:
+            Capsule().fill(Color.white.opacity(0.06)).allowsHitTesting(false)
+        case .rect(let cr):
+            RoundedRectangle(cornerRadius: cr).fill(Color.white.opacity(0.06)).allowsHitTesting(false)
+        }
+    }
+
+    /// 2pt AngularGradient stroke on an outset path — simulates light bleeding around edge.
     @ViewBuilder
     private var outerGlow: some View {
         let gradient = AngularGradient(
             stops: [
-                .init(color: .white.opacity(0.25), location: 0.0),
-                .init(color: .white.opacity(0.12), location: 0.15),
+                .init(color: .white.opacity(0.40), location: 0.0),
+                .init(color: .white.opacity(0.22), location: 0.15),
                 .init(color: .clear, location: 0.3),
                 .init(color: .clear, location: 0.55),
-                .init(color: .white.opacity(0.10), location: 0.7),
-                .init(color: .white.opacity(0.20), location: 0.85),
-                .init(color: .white.opacity(0.25), location: 1.0)
+                .init(color: .white.opacity(0.18), location: 0.7),
+                .init(color: .white.opacity(0.32), location: 0.85),
+                .init(color: .white.opacity(0.40), location: 1.0)
             ],
             center: .center
         )
         switch shape {
         case .circle:
-            Circle().inset(by: -0.75).stroke(gradient, lineWidth: 1.5)
+            Circle().inset(by: -1.0).stroke(gradient, lineWidth: 2.0)
         case .capsule:
-            Capsule().inset(by: -0.75).stroke(gradient, lineWidth: 1.5)
+            Capsule().inset(by: -1.0).stroke(gradient, lineWidth: 2.0)
         case .rect(let cr):
-            RoundedRectangle(cornerRadius: cr).inset(by: -0.75).stroke(gradient, lineWidth: 1.5)
+            RoundedRectangle(cornerRadius: cr).inset(by: -1.0).stroke(gradient, lineWidth: 2.0)
         }
     }
 
-    /// 1.0pt AngularGradient stroke simulating directional light on the glass edge.
+    /// 1.5pt AngularGradient stroke simulating directional light on the glass edge.
     @ViewBuilder
     private var rimHighlight: some View {
         let gradient = AngularGradient(
             stops: [
-                .init(color: .white.opacity(0.45), location: 0.0),
-                .init(color: .white.opacity(0.25), location: 0.12),
-                .init(color: .clear, location: 0.25),
-                .init(color: .clear, location: 0.5),
-                .init(color: .white.opacity(0.15), location: 0.62),
-                .init(color: .white.opacity(0.35), location: 0.75),
-                .init(color: .clear, location: 0.88),
-                .init(color: .white.opacity(0.45), location: 1.0)
+                .init(color: .white.opacity(0.80), location: 0.0),
+                .init(color: .white.opacity(0.50), location: 0.12),
+                .init(color: .white.opacity(0.12), location: 0.25),
+                .init(color: .white.opacity(0.12), location: 0.5),
+                .init(color: .white.opacity(0.38), location: 0.62),
+                .init(color: .white.opacity(0.65), location: 0.75),
+                .init(color: .white.opacity(0.15), location: 0.88),
+                .init(color: .white.opacity(0.80), location: 1.0)
             ],
             center: .center
         )
         switch shape {
         case .circle:
-            Circle().stroke(gradient, lineWidth: 1.0)
+            Circle().stroke(gradient, lineWidth: 1.5)
         case .capsule:
-            Capsule().stroke(gradient, lineWidth: 1.0)
+            Capsule().stroke(gradient, lineWidth: 1.5)
         case .rect(let cr):
-            RoundedRectangle(cornerRadius: cr).stroke(gradient, lineWidth: 1.0)
+            RoundedRectangle(cornerRadius: cr).stroke(gradient, lineWidth: 1.5)
         }
     }
 
@@ -256,10 +262,10 @@ struct DeepGlassModifier: ViewModifier {
     private var innerConvexHighlight: some View {
         let gradient = LinearGradient(
             colors: [
-                Color.white.opacity(0.18),
-                Color.white.opacity(0.06),
+                Color.white.opacity(0.28),
+                Color.white.opacity(0.10),
                 Color.clear,
-                Color.black.opacity(0.05)
+                Color.black.opacity(0.08)
             ],
             startPoint: .top,
             endPoint: .bottom
@@ -309,7 +315,7 @@ struct GlassSlabModifier: ViewModifier {
 
     @ViewBuilder
     private var outerHalo: some View {
-        let haloColor = Color.white.opacity(0.08)
+        let haloColor = Color(hex: 0xB8C4D0).opacity(0.12)
         switch shape {
         case .circle:
             Circle().inset(by: -1.5).stroke(haloColor, lineWidth: 3).blur(radius: 2)
@@ -324,13 +330,13 @@ struct GlassSlabModifier: ViewModifier {
     private var rimHighlight: some View {
         let gradient = AngularGradient(
             stops: [
-                .init(color: .white.opacity(0.35), location: 0.0),
-                .init(color: .white.opacity(0.18), location: 0.15),
-                .init(color: .clear, location: 0.3),
-                .init(color: .clear, location: 0.55),
-                .init(color: .white.opacity(0.12), location: 0.7),
-                .init(color: .white.opacity(0.28), location: 0.85),
-                .init(color: .white.opacity(0.35), location: 1.0)
+                .init(color: .white.opacity(0.50), location: 0.0),
+                .init(color: .white.opacity(0.30), location: 0.15),
+                .init(color: .white.opacity(0.06), location: 0.3),
+                .init(color: .white.opacity(0.06), location: 0.55),
+                .init(color: .white.opacity(0.22), location: 0.7),
+                .init(color: .white.opacity(0.42), location: 0.85),
+                .init(color: .white.opacity(0.50), location: 1.0)
             ],
             center: .center
         )
@@ -348,10 +354,10 @@ struct GlassSlabModifier: ViewModifier {
     private var innerConvexHighlight: some View {
         let gradient = LinearGradient(
             colors: [
-                Color.white.opacity(0.14),
-                Color.white.opacity(0.04),
+                Color.white.opacity(0.22),
+                Color.white.opacity(0.08),
                 Color.clear,
-                Color.black.opacity(0.03)
+                Color.black.opacity(0.05)
             ],
             startPoint: .top,
             endPoint: .bottom
@@ -416,13 +422,13 @@ struct GlassGemModifier: ViewModifier {
     private var rimHighlight: some View {
         let gradient = AngularGradient(
             stops: [
-                .init(color: .white.opacity(0.30), location: 0.0),
-                .init(color: .white.opacity(0.15), location: 0.15),
-                .init(color: .clear, location: 0.35),
-                .init(color: .clear, location: 0.6),
-                .init(color: .white.opacity(0.10), location: 0.75),
-                .init(color: .white.opacity(0.25), location: 0.9),
-                .init(color: .white.opacity(0.30), location: 1.0)
+                .init(color: .white.opacity(0.50), location: 0.0),
+                .init(color: .white.opacity(0.28), location: 0.15),
+                .init(color: .white.opacity(0.06), location: 0.35),
+                .init(color: .white.opacity(0.06), location: 0.6),
+                .init(color: .white.opacity(0.20), location: 0.75),
+                .init(color: .white.opacity(0.40), location: 0.9),
+                .init(color: .white.opacity(0.50), location: 1.0)
             ],
             center: .center
         )
@@ -440,8 +446,8 @@ struct GlassGemModifier: ViewModifier {
     private var innerConvexHighlight: some View {
         let gradient = LinearGradient(
             colors: [
-                Color.white.opacity(0.10),
-                Color.white.opacity(0.03),
+                Color.white.opacity(0.20),
+                Color.white.opacity(0.07),
                 Color.clear
             ],
             startPoint: .top,
@@ -524,12 +530,12 @@ struct GlassRowModifier: ViewModifier {
                     .stroke(
                         AngularGradient(
                             stops: [
-                                .init(color: .white.opacity(0.22), location: 0.0),
-                                .init(color: .white.opacity(0.10), location: 0.2),
-                                .init(color: .clear, location: 0.4),
-                                .init(color: .clear, location: 0.65),
-                                .init(color: .white.opacity(0.08), location: 0.8),
-                                .init(color: .white.opacity(0.18), location: 1.0)
+                                .init(color: .white.opacity(0.38), location: 0.0),
+                                .init(color: .white.opacity(0.20), location: 0.2),
+                                .init(color: .white.opacity(0.05), location: 0.4),
+                                .init(color: .white.opacity(0.05), location: 0.65),
+                                .init(color: .white.opacity(0.16), location: 0.8),
+                                .init(color: .white.opacity(0.32), location: 1.0)
                             ],
                             center: .center
                         ),

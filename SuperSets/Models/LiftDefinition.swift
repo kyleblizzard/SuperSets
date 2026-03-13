@@ -22,18 +22,18 @@ final class LiftDefinition {
     // MARK: Properties
     
     /// The name of the exercise (e.g., "Bench Press", "Barbell Curl")
-    var name: String
-    
+    var name: String = ""
+
     /// Which muscle group this lift targets.
     /// Stored as a String in the database (because of the enum's String raw value),
     /// but we work with MuscleGroup in code for type safety.
-    var muscleGroupRaw: String
-    
+    var muscleGroupRaw: String = "chest"
+
     /// Whether this lift was created by the user (true) or came pre-loaded (false).
-    var isCustom: Bool
-    
+    var isCustom: Bool = false
+
     /// When this lift definition was first created.
-    var dateCreated: Date
+    var dateCreated: Date = Date()
     
     /// The last time this lift was used in any workout.
     /// Used to populate the "recent lifts" circle buttons on the workout screen.

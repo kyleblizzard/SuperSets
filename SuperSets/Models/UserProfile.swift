@@ -75,37 +75,31 @@ final class UserProfile {
     
     // MARK: Personal Info
     
-    var name: String
-    var age: Int
-    var biologicalSexRaw: String
-    
+    var name: String = ""
+    var age: Int = 25
+    var biologicalSexRaw: String = "Male"
+
     // MARK: Measurements
-    
+
     /// Height in total inches. Displayed as feet'inches" in the UI.
-    var heightInches: Double
-    
+    var heightInches: Double = 70
+
     /// Body weight in the user's preferred unit (lbs by default).
-    var bodyWeight: Double
-    
+    var bodyWeight: Double = 180
+
     /// Waist measurement in inches.
-    var waistInches: Double
-    
+    var waistInches: Double = 34
+
     // MARK: Preferences
-    
+
     /// Whether the user prefers lbs or kg. Defaults to lbs.
-    var preferredUnitRaw: String
-    
+    var preferredUnitRaw: String = "lbs"
+
     /// Unused — app is now dark-only. Kept to avoid SwiftData schema migration.
-    var preferredThemeRaw: String
-    
+    var preferredThemeRaw: String = "Dark"
+
     /// The user's activity level for TDEE calculation.
-    ///
-    /// LEARNING NOTE:
-    /// Like other enums, we store the raw String value in the database
-    /// and provide a type-safe computed property below. This pattern
-    /// keeps the database schema simple (just strings) while giving us
-    /// compile-time safety in Swift code.
-    var activityLevelRaw: String
+    var activityLevelRaw: String = "Moderate"
 
     /// Whether the user prefers scroll wheel (slot machine) input for weight/reps
     /// or keyboard text fields. Defaults to true (wheel).
@@ -117,13 +111,7 @@ final class UserProfile {
     // MARK: Profile Photo
     
     /// The user's profile photo stored as raw image data (JPEG/PNG bytes).
-    ///
-    /// LEARNING NOTE:
-    /// @Attribute(.externalStorage) tells SwiftData to store this data
-    /// in a separate file rather than inline in the database. This is
-    /// important for large binary data like images — it keeps the
-    /// database lightweight and queries fast.
-    @Attribute(.externalStorage)
+    /// Stored inline (no .externalStorage) for CloudKit compatibility.
     var profilePhotoData: Data?
     
     // MARK: Dates

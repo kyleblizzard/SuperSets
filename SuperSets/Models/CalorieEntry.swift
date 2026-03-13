@@ -18,12 +18,12 @@ enum CalorieSource: String, Codable, CaseIterable {
 
 @Model
 final class CalorieEntry {
-    var date: Date
+    var date: Date = Date()
     /// Active calories burned.
-    var burned: Double
+    var burned: Double = 0
     /// Calories consumed (optional — user may not track food).
     var consumed: Double?
-    var sourceRaw: String
+    var sourceRaw: String = "Manual"
 
     var source: CalorieSource {
         get { CalorieSource(rawValue: sourceRaw) ?? .manual }

@@ -21,9 +21,9 @@ enum BodyFatMethod: String, CaseIterable, Codable, Identifiable {
 
 @Model
 final class BodyFatEntry {
-    var date: Date
-    var percentage: Double
-    var methodRaw: String
+    var date: Date = Date()
+    var percentage: Double = 0
+    var methodRaw: String = "Smart Scale"
 
     var method: BodyFatMethod {
         get { BodyFatMethod(rawValue: methodRaw) ?? .scale }

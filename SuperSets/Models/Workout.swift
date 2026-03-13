@@ -19,17 +19,17 @@ final class Workout {
     // MARK: Properties
     
     /// When this workout session started.
-    var date: Date
-    
+    var date: Date = Date()
+
     /// When the user tapped "End Workout." nil while the workout is in progress.
     var endDate: Date?
-    
+
     /// Optional notes the user can add when ending the workout.
     var notes: String?
-    
+
     /// true while the workout is happening, false after it's ended.
     /// Only one Workout should have isActive == true at any time.
-    var isActive: Bool
+    var isActive: Bool = false
     
     // MARK: Relationships
     

@@ -47,20 +47,20 @@ final class WorkoutSet {
     // MARK: Properties
     
     /// The weight used for this set, in the user's preferred unit (lbs or kg).
-    var weight: Double
-    
+    var weight: Double = 0
+
     /// How many repetitions were completed.
-    var reps: Int
-    
+    var reps: Int = 0
+
     /// Which set number this is for this particular lift within this workout.
     /// Auto-incremented by WorkoutManager — the user never types this.
     ///
     /// Example: If the user does 4 sets of Bench Press, they'll be numbered 1, 2, 3, 4.
     /// If they then switch to Incline Press, that starts fresh at 1.
-    var setNumber: Int
-    
+    var setNumber: Int = 0
+
     /// When this set was logged. Used for ordering and time-based analysis.
-    var timestamp: Date
+    var timestamp: Date = Date()
 
     // MARK: Set Type
 
