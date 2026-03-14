@@ -13,9 +13,8 @@ struct BodyMeasurementsView: View {
     @Bindable var workoutManager: WorkoutManager
 
     @State private var selectedType: MeasurementType = .chest
-    @State private var inputValue = ""
+    @State private var inputDouble: Double = 0
     @State private var showingInput = false
-    @FocusState private var isInputFocused: Bool
 
     var body: some View {
         ScrollView {
@@ -112,19 +111,12 @@ struct BodyMeasurementsView: View {
             .padding(.top, 8)
         }
         .scrollIndicators(.hidden)
-        .scrollDismissesKeyboard(.interactively)
         .navigationTitle("Body Measurements")
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showingInput) {
             measurementInputSheet
-                .presentationDetents([.height(220)])
+                .presentationDetents([.height(260)])
                 .presentationDragIndicator(.visible)
-        }
-        .toolbar {
-            ToolbarItemGroup(placement: .keyboard) {
-                Spacer()
-                Button("Done") { isInputFocused = false }
-            }
         }
     }
 
@@ -206,25 +198,18 @@ struct BodyMeasurementsView: View {
                 .font(.headline)
                 .foregroundStyle(AppColors.primaryText)
 
-            HStack {
-                TextField("0.0", text: $inputValue)
-                    .keyboardType(.decimalPad)
-                    .focused($isInputFocused)
-                    .font(.system(size: 36, weight: .bold, design: .rounded).monospacedDigit())
-                    .foregroundStyle(AppColors.primaryText)
-                    .multilineTextAlignment(.center)
-
-                Text("in")
-                    .font(.title3)
-                    .foregroundStyle(AppColors.subtleText)
-            }
-            .padding(.horizontal, 32)
+            RulerSlider(
+                value: $inputDouble,
+                range: 0...80,
+                step: 0.25,
+                unit: "in"
+            )
+            .padding(.horizontal, 16)
 
             Button {
-                if let value = Double(inputValue), value > 0 {
-                    workoutManager.logBodyMeasurement(type: selectedType, value: value)
+                if inputDouble > 0 {
+                    workoutManager.logBodyMeasurement(type: selectedType, value: inputDouble)
                     showingInput = false
-                    inputValue = ""
                 }
             } label: {
                 Text("Save")

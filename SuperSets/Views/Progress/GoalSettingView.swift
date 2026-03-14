@@ -15,7 +15,7 @@ struct GoalSettingView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var goalType: GoalType = .maintenance
-    @State private var targetWeight: String = "170"
+    @State private var targetWeightValue: Double = 170
     @State private var weeklyRate: Double = 1.0
 
     var body: some View {
@@ -41,18 +41,12 @@ struct GoalSettingView: View {
                         sectionHeader("Target Weight", icon: "scalemass.fill")
 
                         let unit = workoutManager.userProfile?.preferredUnit ?? .lbs
-                        HStack {
-                            TextField("170", text: $targetWeight)
-                                .keyboardType(.decimalPad)
-                                .font(.system(size: 32, weight: .bold, design: .rounded).monospacedDigit())
-                                .foregroundStyle(AppColors.primaryText)
-                                .multilineTextAlignment(.center)
-
-                            Text(unit.rawValue)
-                                .font(.title3)
-                                .foregroundStyle(AppColors.subtleText)
-                        }
-                        .padding(.horizontal, 16)
+                        RulerSlider(
+                            value: $targetWeightValue,
+                            range: unit == .kg ? 25...250 : 50...500,
+                            step: 1,
+                            unit: unit.rawValue
+                        )
                     }
                     .padding(16)
                     .glassCard()
@@ -61,17 +55,12 @@ struct GoalSettingView: View {
                     VStack(alignment: .leading, spacing: 12) {
                         sectionHeader("Weekly Rate", icon: "speedometer")
 
-                        HStack {
-                            Text(String(format: "%.1f", weeklyRate))
-                                .font(.system(size: 28, weight: .bold, design: .rounded).monospacedDigit())
-                                .foregroundStyle(AppColors.primaryText)
-                            Text("lbs/week")
-                                .font(.subheadline)
-                                .foregroundStyle(AppColors.subtleText)
-                        }
-
-                        Slider(value: $weeklyRate, in: 0.5...2.0, step: 0.25)
-                            .tint(AppColors.accent)
+                        RulerSlider(
+                            value: $weeklyRate,
+                            range: 0.5...2.0,
+                            step: 0.25,
+                            unit: "lbs/wk"
+                        )
                     }
                     .padding(16)
                     .glassCard()
@@ -126,7 +115,7 @@ struct GoalSettingView: View {
         .onAppear {
             if let goal = workoutManager.activeGoal() {
                 goalType = goal.type
-                targetWeight = String(format: "%.0f", goal.targetWeight)
+                targetWeightValue = goal.targetWeight
                 weeklyRate = goal.weeklyRate
             }
         }
@@ -148,7 +137,7 @@ struct GoalSettingView: View {
         guard let context = workoutManager.modelContext else { return }
         let goal = GoalSetting(
             type: goalType,
-            targetWeight: Double(targetWeight) ?? 170,
+            targetWeight: targetWeightValue,
             weeklyRate: weeklyRate,
             dailyCalorieTarget: calculatedDailyCalories
         )

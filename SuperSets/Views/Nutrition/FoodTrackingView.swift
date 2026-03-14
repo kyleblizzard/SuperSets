@@ -1,8 +1,8 @@
 // FoodTrackingView.swift
 // Super Sets — The Workout Tracker
 //
-// Daily food and macro tracking with progress rings,
-// quick-log for previously eaten foods, and preset food database.
+// Daily food and macro tracking with net calories view,
+// horizontal macro bars, quick-log, saved meals, and preset database.
 
 import SwiftUI
 import SwiftData
@@ -12,17 +12,23 @@ import SwiftData
 struct FoodTrackingView: View {
 
     @Bindable var workoutManager: WorkoutManager
+    @Environment(HealthKitManager.self) private var healthKitManager: HealthKitManager?
     @State private var showingAddSheet = false
 
     @Query(sort: \FoodEntry.date, order: .reverse)
     private var allEntries: [FoodEntry]
+
+    @Query(sort: \SavedMeal.date, order: .reverse)
+    private var savedMeals: [SavedMeal]
+
+    // MARK: Computed — Today's Intake
 
     private var todayEntries: [FoodEntry] {
         let calendar = Calendar.current
         return allEntries.filter { calendar.isDateInToday($0.date) }
     }
 
-    private var todayCalories: Int {
+    private var consumed: Int {
         todayEntries.reduce(0) { $0 + $1.calories }
     }
 
@@ -38,9 +44,20 @@ struct FoodTrackingView: View {
         todayEntries.reduce(0) { $0 + $1.fat }
     }
 
+    // MARK: Computed — Calories Burned
+
     private var profile: UserProfile? {
         workoutManager.userProfile
     }
+
+    private var burned: Int {
+        guard let profile else { return 0 }
+        return bmrSoFar(profile: profile)
+             + stepCalories(profile: profile)
+             + workoutManager.todayWorkoutCalories()
+    }
+
+    private var net: Int { consumed - burned }
 
     private var calorieGoal: Int {
         profile?.effectiveCalorieGoal ?? 2200
@@ -58,10 +75,13 @@ struct FoodTrackingView: View {
         profile?.effectiveFatGoal ?? 73
     }
 
+    // MARK: Body
+
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
-                ringsSection
+                netCaloriesSection
+                macrosSection
                 quickLogSection
                 todayLogSection
                 Spacer().frame(height: 40)
@@ -88,87 +108,125 @@ struct FoodTrackingView: View {
         }
     }
 
-    // MARK: - Rings Section
+    // MARK: - Net Calories Section
 
-    private var ringsSection: some View {
-        VStack(spacing: 16) {
-            sectionHeader("Today's Nutrition", icon: "fork.knife")
+    private var netCaloriesSection: some View {
+        VStack(spacing: 14) {
+            sectionHeader("Net Calories", icon: "fork.knife")
 
-            // Calorie ring
-            ZStack {
-                Circle()
-                    .stroke(AppColors.subtleText.opacity(0.2), lineWidth: 12)
-                Circle()
-                    .trim(from: 0, to: calorieProgress)
-                    .stroke(AppColors.accent, style: StrokeStyle(lineWidth: 12, lineCap: .round))
-                    .rotationEffect(.degrees(-90))
-                    .animation(.spring(), value: calorieProgress)
+            // Main net number
+            VStack(spacing: 4) {
+                Text("\(net)")
+                    .font(.system(size: 40, weight: .bold, design: .rounded).monospacedDigit())
+                    .foregroundStyle(netColor)
 
-                VStack(spacing: 4) {
-                    Text("\(todayCalories)")
-                        .font(.system(size: 32, weight: .bold, design: .rounded).monospacedDigit())
-                        .foregroundStyle(AppColors.primaryText)
-                    Text("/ \(calorieGoal) cal")
-                        .font(.caption)
-                        .foregroundStyle(AppColors.subtleText)
-                }
+                Text(netLabel)
+                    .font(.caption.bold())
+                    .foregroundStyle(netColor.opacity(0.8))
             }
-            .frame(width: 160, height: 160)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .deepGlass(.rect(cornerRadius: 16))
 
-            // Macro mini-rings
-            HStack(spacing: 20) {
-                macroRing(
-                    label: "Protein",
-                    current: todayProtein,
-                    goal: proteinGoal,
-                    color: AppColors.positive
-                )
-                macroRing(
-                    label: "Carbs",
-                    current: todayCarbs,
-                    goal: carbsGoal,
-                    color: Color(hex: 0x42A5F5)
-                )
-                macroRing(
-                    label: "Fat",
-                    current: todayFat,
-                    goal: fatGoal,
+            // Consumed vs Burned
+            HStack(spacing: 12) {
+                calorieTile(
+                    icon: "arrow.up.circle.fill",
+                    label: "Consumed",
+                    value: consumed,
                     color: AppColors.warmAmber
+                )
+                calorieTile(
+                    icon: "arrow.down.circle.fill",
+                    label: "Burned",
+                    value: burned,
+                    color: AppColors.accent
+                )
+                calorieTile(
+                    icon: "target",
+                    label: "Goal",
+                    value: calorieGoal,
+                    color: AppColors.accentSecondary
                 )
             }
         }
-        .frame(maxWidth: .infinity)
-        .padding(20)
+        .padding(16)
         .glassCard()
     }
 
-    private var calorieProgress: Double {
-        guard calorieGoal > 0 else { return 0 }
-        return min(Double(todayCalories) / Double(calorieGoal), 1.0)
+    private var netColor: Color {
+        guard let profile else { return AppColors.primaryText }
+        switch profile.weightGoal {
+        case .lose:     return net < 0 ? AppColors.positive : AppColors.danger
+        case .maintain: return abs(net) < 200 ? AppColors.positive : AppColors.warmAmber
+        case .gain:     return net > 0 ? AppColors.positive : AppColors.danger
+        }
     }
 
-    private func macroRing(label: String, current: Double, goal: Double, color: Color) -> some View {
+    private var netLabel: String {
+        if net > 0 { return "surplus" }
+        if net < 0 { return "deficit" }
+        return "balanced"
+    }
+
+    private func calorieTile(icon: String, label: String, value: Int, color: Color) -> some View {
+        VStack(spacing: 4) {
+            Image(systemName: icon)
+                .font(.system(size: 14))
+                .foregroundStyle(color)
+            Text("\(value)")
+                .font(.system(size: 16, weight: .bold, design: .rounded).monospacedDigit())
+                .foregroundStyle(AppColors.primaryText)
+            Text(label)
+                .font(.system(size: 9, weight: .medium))
+                .foregroundStyle(AppColors.subtleText)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 10)
+        .deepGlass(.rect(cornerRadius: 12))
+    }
+
+    // MARK: - Macros Section (Horizontal Bars)
+
+    private var macrosSection: some View {
+        VStack(spacing: 12) {
+            sectionHeader("Macros", icon: "chart.bar.fill")
+
+            macroBar(label: "Protein", current: todayProtein, goal: proteinGoal, color: AppColors.positive)
+            macroBar(label: "Carbs", current: todayCarbs, goal: carbsGoal, color: Color(hex: 0x42A5F5))
+            macroBar(label: "Fat", current: todayFat, goal: fatGoal, color: AppColors.warmAmber)
+        }
+        .padding(16)
+        .glassCard()
+    }
+
+    private func macroBar(label: String, current: Double, goal: Double, color: Color) -> some View {
         let progress = goal > 0 ? min(current / goal, 1.0) : 0
 
-        return VStack(spacing: 6) {
-            ZStack {
-                Circle()
-                    .stroke(AppColors.subtleText.opacity(0.2), lineWidth: 6)
-                Circle()
-                    .trim(from: 0, to: progress)
-                    .stroke(color, style: StrokeStyle(lineWidth: 6, lineCap: .round))
-                    .rotationEffect(.degrees(-90))
-                    .animation(.spring(), value: progress)
-
-                Text("\(Int(current))g")
-                    .font(.system(size: 11, weight: .bold, design: .rounded).monospacedDigit())
+        return VStack(spacing: 4) {
+            HStack {
+                Text(label)
+                    .font(.caption.bold())
+                    .foregroundStyle(AppColors.subtleText)
+                Spacer()
+                Text("\(Int(current))g / \(Int(goal))g")
+                    .font(.caption.bold().monospacedDigit())
                     .foregroundStyle(AppColors.primaryText)
             }
-            .frame(width: 60, height: 60)
 
-            Text(label)
-                .font(.system(size: 10, weight: .medium))
-                .foregroundStyle(AppColors.subtleText)
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(AppColors.subtleText.opacity(0.15))
+                        .frame(height: 8)
+
+                    Capsule()
+                        .fill(color)
+                        .frame(width: max(0, geo.size.width * progress), height: 8)
+                        .animation(.spring(), value: progress)
+                }
+            }
+            .frame(height: 8)
         }
     }
 
@@ -177,10 +235,54 @@ struct FoodTrackingView: View {
     @ViewBuilder
     private var quickLogSection: some View {
         let uniqueFoods = uniqueFoodNames
-        if !uniqueFoods.isEmpty {
+        let hasMeals = !savedMeals.isEmpty
+        let hasItems = !uniqueFoods.isEmpty || hasMeals
+
+        if hasItems {
             VStack(alignment: .leading, spacing: 12) {
                 sectionHeader("Quick Log", icon: "bolt.fill")
 
+                // Saved meals first
+                ForEach(savedMeals) { meal in
+                    Button {
+                        logSavedMeal(meal)
+                    } label: {
+                        HStack {
+                            Image(systemName: "tray.full.fill")
+                                .font(.system(size: 14))
+                                .foregroundStyle(AppColors.gold)
+                                .frame(width: 28, height: 28)
+                                .glassGem(.circle)
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(meal.name)
+                                    .font(.subheadline.bold())
+                                    .foregroundStyle(AppColors.primaryText)
+                                Text("\(meal.items.count) items · \(meal.macroSummary)")
+                                    .font(.caption2)
+                                    .foregroundStyle(AppColors.subtleText)
+                            }
+
+                            Spacer()
+
+                            Image(systemName: "plus.circle.fill")
+                                .foregroundStyle(AppColors.accent)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 10)
+                        .deepGlass(.rect(cornerRadius: 12))
+                    }
+                    .buttonStyle(.plain)
+                    .contextMenu {
+                        Button(role: .destructive) {
+                            deleteSavedMeal(meal)
+                        } label: {
+                            Label("Delete Meal", systemImage: "trash")
+                        }
+                    }
+                }
+
+                // Individual foods
                 ForEach(uniqueFoods, id: \.self) { name in
                     if let latest = allEntries.first(where: { $0.name == name }) {
                         Button {
@@ -262,7 +364,23 @@ struct FoodTrackingView: View {
         }
     }
 
-    // MARK: - Helpers
+    // MARK: - Calorie Burn Helpers
+
+    private func bmrSoFar(profile: UserProfile) -> Int {
+        let calendar = Calendar.current
+        let hour = calendar.component(.hour, from: Date())
+        let minute = calendar.component(.minute, from: Date())
+        let fractionOfDay = (Double(hour) + Double(minute) / 60.0) / 24.0
+        return Int(Double(profile.restingMetabolicRate) * fractionOfDay)
+    }
+
+    private func stepCalories(profile: UserProfile) -> Int {
+        let steps = healthKitManager?.todaySteps ?? 0
+        let calPerStep = 0.04 * (profile.bodyWeightKg / 70.0)
+        return Int(Double(steps) * calPerStep)
+    }
+
+    // MARK: - Data Helpers
 
     private var uniqueFoodNames: [String] {
         var seen = Set<String>()
@@ -290,6 +408,30 @@ struct FoodTrackingView: View {
         context.insert(entry)
         workoutManager.save()
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
+    }
+
+    private func logSavedMeal(_ meal: SavedMeal) {
+        guard let context = workoutManager.modelContext else { return }
+        for item in meal.items {
+            let entry = FoodEntry(
+                name: item.name,
+                calories: item.calories,
+                protein: item.protein,
+                carbs: item.carbs,
+                fat: item.fat,
+                servingSize: item.servingSize,
+                servingUnit: item.servingUnit
+            )
+            context.insert(entry)
+        }
+        workoutManager.save()
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+    }
+
+    private func deleteSavedMeal(_ meal: SavedMeal) {
+        guard let context = workoutManager.modelContext else { return }
+        context.delete(meal)
+        workoutManager.save()
     }
 
     private func deleteEntry(_ entry: FoodEntry) {
@@ -320,72 +462,255 @@ struct AddFoodSheet: View {
     @Bindable var workoutManager: WorkoutManager
     @Environment(\.dismiss) private var dismiss
 
+    @Query(sort: \FoodEntry.date, order: .reverse)
+    private var allEntries: [FoodEntry]
+
+    enum SheetMode { case addFood, createMeal }
+    @State private var mode: SheetMode = .addFood
     @State private var searchText = ""
     @State private var showCustomForm = false
 
     // Custom entry fields
     @State private var customName = ""
-    @State private var customCalories = ""
-    @State private var customProtein = ""
-    @State private var customCarbs = ""
-    @State private var customFat = ""
-    @State private var customServingSize = "1"
+    @State private var customCalories: Int = 0
+    @State private var customProtein: Int = 0
+    @State private var customCarbs: Int = 0
+    @State private var customFat: Int = 0
+    @State private var customServingSize: Double = 1.0
     @State private var customServingUnit: ServingUnit = .serving
+
+    // Create meal fields
+    @State private var mealName = ""
+    @State private var mealItems: [SavedMealItem] = []
+    @State private var mealSearchText = ""
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 16) {
-                    // Search bar
-                    HStack(spacing: 8) {
-                        Image(systemName: "magnifyingglass")
-                            .foregroundStyle(AppColors.subtleText)
-                        TextField("Search foods...", text: $searchText)
-                            .foregroundStyle(AppColors.primaryText)
-                    }
-                    .padding(10)
-                    .glassField(cornerRadius: 10)
-
-                    // Custom entry button
-                    Button {
-                        showCustomForm.toggle()
-                    } label: {
-                        HStack {
-                            Image(systemName: showCustomForm ? "chevron.down" : "square.and.pencil")
-                                .font(.system(size: 14))
-                                .foregroundStyle(AppColors.accent)
-                            Text("Custom Entry")
-                                .font(.subheadline.bold())
-                                .foregroundStyle(AppColors.primaryText)
-                            Spacer()
-                        }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 10)
-                        .deepGlass(.rect(cornerRadius: 12))
-                    }
-                    .buttonStyle(.plain)
-
-                    if showCustomForm {
-                        customFormSection
-                    }
-
-                    // Preset foods
-                    if !showCustomForm {
-                        presetFoodsSection
-                    }
+            VStack(spacing: 0) {
+                // Mode picker
+                Picker("", selection: $mode) {
+                    Text("Add Food").tag(SheetMode.addFood)
+                    Text("Create Meal").tag(SheetMode.createMeal)
                 }
-                .padding(16)
+                .pickerStyle(.segmented)
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+
+                ScrollView {
+                    VStack(spacing: 16) {
+                        if mode == .addFood {
+                            addFoodContent
+                        } else {
+                            createMealContent
+                        }
+                    }
+                    .padding(16)
+                }
+                .scrollIndicators(.hidden)
             }
-            .scrollIndicators(.hidden)
             .appBackground()
-            .navigationTitle("Add Food")
+            .navigationTitle(mode == .addFood ? "Add Food" : "Create Meal")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
                 }
+                if mode == .createMeal {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Save") { saveMeal() }
+                            .disabled(mealName.isEmpty || mealItems.isEmpty)
+                    }
+                }
             }
         }
+    }
+
+    // MARK: - Add Food Content
+
+    @ViewBuilder
+    private var addFoodContent: some View {
+        // Search bar
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass")
+                .foregroundStyle(AppColors.subtleText)
+            TextField("Search foods...", text: $searchText)
+                .foregroundStyle(AppColors.primaryText)
+        }
+        .padding(10)
+        .glassField(cornerRadius: 10)
+
+        // Custom entry button
+        Button {
+            showCustomForm.toggle()
+        } label: {
+            HStack {
+                Image(systemName: showCustomForm ? "chevron.down" : "square.and.pencil")
+                    .font(.system(size: 14))
+                    .foregroundStyle(AppColors.accent)
+                Text("Custom Entry")
+                    .font(.subheadline.bold())
+                    .foregroundStyle(AppColors.primaryText)
+                Spacer()
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .deepGlass(.rect(cornerRadius: 12))
+        }
+        .buttonStyle(.plain)
+
+        if showCustomForm {
+            customFormSection
+        }
+
+        if !showCustomForm {
+            presetFoodsSection
+        }
+    }
+
+    // MARK: - Create Meal Content
+
+    @ViewBuilder
+    private var createMealContent: some View {
+        // Meal name
+        formField("Meal Name", text: $mealName, placeholder: "e.g. My Breakfast")
+
+        // Current items in meal
+        if !mealItems.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Items (\(mealItems.count))")
+                    .font(.caption.bold())
+                    .foregroundStyle(AppColors.subtleText)
+
+                ForEach(mealItems) { item in
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(item.name)
+                                .font(.subheadline.bold())
+                                .foregroundStyle(AppColors.primaryText)
+                            Text("\(item.calories) cal · \(Int(item.protein))P · \(Int(item.carbs))C · \(Int(item.fat))F")
+                                .font(.caption2)
+                                .foregroundStyle(AppColors.subtleText)
+                        }
+                        Spacer()
+                        Button {
+                            mealItems.removeAll { $0.id == item.id }
+                        } label: {
+                            Image(systemName: "minus.circle.fill")
+                                .foregroundStyle(AppColors.danger)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 6)
+                    .glassRow(cornerRadius: 10)
+                }
+
+                // Totals
+                HStack {
+                    Text("Total")
+                        .font(.caption.bold())
+                        .foregroundStyle(AppColors.subtleText)
+                    Spacer()
+                    let totalCal = mealItems.reduce(0) { $0 + $1.calories }
+                    let totalP = mealItems.reduce(0.0) { $0 + $1.protein }
+                    let totalC = mealItems.reduce(0.0) { $0 + $1.carbs }
+                    let totalF = mealItems.reduce(0.0) { $0 + $1.fat }
+                    Text("\(totalCal) cal · \(Int(totalP))P · \(Int(totalC))C · \(Int(totalF))F")
+                        .font(.caption.bold().monospacedDigit())
+                        .foregroundStyle(AppColors.accent)
+                }
+                .padding(.top, 4)
+            }
+            .padding(12)
+            .glassCard()
+        }
+
+        // Search to add items
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass")
+                .foregroundStyle(AppColors.subtleText)
+            TextField("Search foods to add...", text: $mealSearchText)
+                .foregroundStyle(AppColors.primaryText)
+        }
+        .padding(10)
+        .glassField(cornerRadius: 10)
+
+        // Previously logged foods
+        let recentFoods = uniqueFoodItems
+        if !recentFoods.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Recent Foods")
+                    .font(.caption.bold())
+                    .foregroundStyle(AppColors.subtleText)
+
+                ForEach(filteredRecentFoods(recentFoods), id: \.name) { entry in
+                    Button {
+                        mealItems.append(SavedMealItem(from: entry))
+                    } label: {
+                        foodRow(name: entry.name, detail: entry.macroSummary, trailing: nil)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+
+        // Presets for meal building
+        mealPresetsList
+    }
+
+    private var mealPresetsList: some View {
+        let filtered = mealSearchText.isEmpty
+            ? PreloadedFoods.byCategory
+            : filteredPresets(mealSearchText)
+
+        return ForEach(Array(filtered.indices), id: \.self) { i in
+            let group = filtered[i]
+            VStack(alignment: .leading, spacing: 8) {
+                Text(group.category.rawValue)
+                    .font(.caption.bold())
+                    .foregroundStyle(AppColors.subtleText)
+                    .padding(.top, 4)
+
+                ForEach(group.foods) { food in
+                    Button {
+                        mealItems.append(SavedMealItem(from: food))
+                    } label: {
+                        foodRow(
+                            name: food.name,
+                            detail: "\(food.calories) cal · \(Int(food.protein))P · \(Int(food.carbs))C · \(Int(food.fat))F",
+                            trailing: servingLabel(food)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+    }
+
+    // MARK: - Shared Components
+
+    private func foodRow(name: String, detail: String, trailing: String?) -> some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(name)
+                    .font(.subheadline.bold())
+                    .foregroundStyle(AppColors.primaryText)
+                Text(detail)
+                    .font(.caption2)
+                    .foregroundStyle(AppColors.subtleText)
+            }
+            Spacer()
+            if let trailing {
+                Text(trailing)
+                    .font(.caption2)
+                    .foregroundStyle(AppColors.subtleText)
+            }
+            Image(systemName: "plus.circle.fill")
+                .foregroundStyle(AppColors.accent)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .glassRow(cornerRadius: 10)
     }
 
     // MARK: - Custom Form
@@ -395,8 +720,23 @@ struct AddFoodSheet: View {
             formField("Name", text: $customName, placeholder: "Food name")
 
             HStack(spacing: 12) {
-                formField("Serving", text: $customServingSize, placeholder: "1", keyboard: .decimalPad)
-                    .frame(maxWidth: 80)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Serving")
+                        .font(.caption.bold())
+                        .foregroundStyle(AppColors.subtleText)
+                    Picker("Serving", selection: $customServingSize) {
+                        ForEach(Array(stride(from: 0.5, through: 20.0, by: 0.5)), id: \.self) { val in
+                            Text(val.truncatingRemainder(dividingBy: 1) == 0
+                                 ? String(format: "%.0f", val)
+                                 : String(format: "%.1f", val))
+                                .tag(val)
+                        }
+                    }
+                    .pickerStyle(.wheel)
+                    .frame(height: 100)
+                    .glassField(cornerRadius: 10)
+                }
+                .frame(maxWidth: 100)
 
                 Picker("Unit", selection: $customServingUnit) {
                     ForEach(ServingUnit.allCases, id: \.self) { unit in
@@ -406,12 +746,26 @@ struct AddFoodSheet: View {
                 .pickerStyle(.segmented)
             }
 
-            formField("Calories", text: $customCalories, placeholder: "0", keyboard: .numberPad)
+            // Calories wheel picker
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Calories")
+                    .font(.caption.bold())
+                    .foregroundStyle(AppColors.subtleText)
+                Picker("Calories", selection: $customCalories) {
+                    ForEach(Array(stride(from: 0, through: 2000, by: 5)), id: \.self) { val in
+                        Text("\(val)").tag(val)
+                    }
+                }
+                .pickerStyle(.wheel)
+                .frame(height: 100)
+                .glassField(cornerRadius: 10)
+            }
 
-            HStack(spacing: 12) {
-                formField("Protein (g)", text: $customProtein, placeholder: "0", keyboard: .decimalPad)
-                formField("Carbs (g)", text: $customCarbs, placeholder: "0", keyboard: .decimalPad)
-                formField("Fat (g)", text: $customFat, placeholder: "0", keyboard: .decimalPad)
+            // Macro wheel pickers
+            HStack(spacing: 8) {
+                macroWheelPicker("Protein", value: $customProtein, color: AppColors.positive)
+                macroWheelPicker("Carbs", value: $customCarbs, color: Color(hex: 0x42A5F5))
+                macroWheelPicker("Fat", value: $customFat, color: AppColors.warmAmber)
             }
 
             Button {
@@ -431,8 +785,24 @@ struct AddFoodSheet: View {
         .glassCard()
     }
 
+    private func macroWheelPicker(_ label: String, value: Binding<Int>, color: Color) -> some View {
+        VStack(alignment: .center, spacing: 4) {
+            Text(label)
+                .font(.system(size: 9, weight: .bold))
+                .foregroundStyle(color)
+            Picker(label, selection: value) {
+                ForEach(0...300, id: \.self) { val in
+                    Text("\(val)g").tag(val)
+                }
+            }
+            .pickerStyle(.wheel)
+            .frame(height: 80)
+            .glassField(cornerRadius: 8)
+        }
+    }
+
     private var saveDisabled: Bool {
-        customName.isEmpty || (Int(customCalories) ?? 0) <= 0
+        customName.isEmpty || customCalories <= 0
     }
 
     private func formField(_ label: String, text: Binding<String>, placeholder: String, keyboard: UIKeyboardType = .default) -> some View {
@@ -454,9 +824,10 @@ struct AddFoodSheet: View {
     private var presetFoodsSection: some View {
         let filtered = searchText.isEmpty
             ? PreloadedFoods.byCategory
-            : filteredBySearch
+            : filteredPresets(searchText)
 
-        return ForEach(filtered, id: \.category) { group in
+        return ForEach(Array(filtered.indices), id: \.self) { i in
+            let group = filtered[i]
             VStack(alignment: .leading, spacing: 8) {
                 Text(group.category.rawValue)
                     .font(.caption.bold())
@@ -467,28 +838,11 @@ struct AddFoodSheet: View {
                     Button {
                         addPreset(food)
                     } label: {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(food.name)
-                                    .font(.subheadline.bold())
-                                    .foregroundStyle(AppColors.primaryText)
-                                Text("\(food.calories) cal · \(Int(food.protein))P · \(Int(food.carbs))C · \(Int(food.fat))F")
-                                    .font(.caption2)
-                                    .foregroundStyle(AppColors.subtleText)
-                            }
-
-                            Spacer()
-
-                            Text("\(food.servingSize, specifier: "%g") \(food.servingUnit.rawValue)")
-                                .font(.caption2)
-                                .foregroundStyle(AppColors.subtleText)
-
-                            Image(systemName: "plus.circle.fill")
-                                .foregroundStyle(AppColors.accent)
-                        }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .glassRow(cornerRadius: 10)
+                        foodRow(
+                            name: food.name,
+                            detail: "\(food.calories) cal · \(Int(food.protein))P · \(Int(food.carbs))C · \(Int(food.fat))F",
+                            trailing: servingLabel(food)
+                        )
                     }
                     .buttonStyle(.plain)
                 }
@@ -496,12 +850,39 @@ struct AddFoodSheet: View {
         }
     }
 
-    private var filteredBySearch: [(category: FoodCategory, foods: [FoodTemplate])] {
-        let results = PreloadedFoods.search(searchText)
+    private func servingLabel(_ food: FoodTemplate) -> String {
+        let size = food.servingSize.truncatingRemainder(dividingBy: 1) == 0
+            ? String(format: "%.0f", food.servingSize)
+            : String(format: "%.1f", food.servingSize)
+        return "\(size) \(food.servingUnit.rawValue)"
+    }
+
+    private func filteredPresets(_ query: String) -> [(category: FoodCategory, foods: [FoodTemplate])] {
+        let results = PreloadedFoods.search(query)
         return FoodCategory.allCases.compactMap { category in
             let foods = results.filter { $0.category == category }
             return foods.isEmpty ? nil : (category: category, foods: foods)
         }
+    }
+
+    // MARK: - Helpers
+
+    private var uniqueFoodItems: [FoodEntry] {
+        var seen = Set<String>()
+        var result: [FoodEntry] = []
+        for entry in allEntries {
+            if !seen.contains(entry.name) {
+                seen.insert(entry.name)
+                result.append(entry)
+            }
+        }
+        return result
+    }
+
+    private func filteredRecentFoods(_ foods: [FoodEntry]) -> [FoodEntry] {
+        guard !mealSearchText.isEmpty else { return foods }
+        let lowered = mealSearchText.lowercased()
+        return foods.filter { $0.name.lowercased().contains(lowered) }
     }
 
     // MARK: - Actions
@@ -527,16 +908,25 @@ struct AddFoodSheet: View {
         guard let context = workoutManager.modelContext else { return }
         let entry = FoodEntry(
             name: customName,
-            calories: Int(customCalories) ?? 0,
-            protein: Double(customProtein) ?? 0,
-            carbs: Double(customCarbs) ?? 0,
-            fat: Double(customFat) ?? 0,
-            servingSize: Double(customServingSize) ?? 1,
+            calories: customCalories,
+            protein: Double(customProtein),
+            carbs: Double(customCarbs),
+            fat: Double(customFat),
+            servingSize: customServingSize,
             servingUnit: customServingUnit
         )
         context.insert(entry)
         workoutManager.save()
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        dismiss()
+    }
+
+    private func saveMeal() {
+        guard let context = workoutManager.modelContext else { return }
+        let meal = SavedMeal(name: mealName, items: mealItems)
+        context.insert(meal)
+        workoutManager.save()
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         dismiss()
     }
 }

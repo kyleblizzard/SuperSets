@@ -182,18 +182,7 @@ struct MedicationView: View {
                         Text("Effectiveness (optional)")
                             .font(.caption.bold())
                             .foregroundStyle(AppColors.subtleText)
-                        HStack(spacing: 8) {
-                            ForEach(1...5, id: \.self) { star in
-                                Button {
-                                    newRating = star
-                                } label: {
-                                    Image(systemName: star <= newRating ? "star.fill" : "star")
-                                        .font(.title3)
-                                        .foregroundStyle(star <= newRating ? AppColors.gold : AppColors.subtleText)
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
+                        SwipeRating(rating: $newRating)
                     }
 
                     VStack(alignment: .leading, spacing: 8) {

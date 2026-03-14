@@ -12,10 +12,9 @@ struct BodyFatView: View {
 
     @Bindable var workoutManager: WorkoutManager
 
-    @State private var inputValue = ""
+    @State private var inputDouble: Double = 20.0
     @State private var selectedMethod: BodyFatMethod = .scale
     @State private var showingInput = false
-    @FocusState private var isInputFocused: Bool
 
     var body: some View {
         ScrollView {
@@ -116,7 +115,7 @@ struct BodyFatView: View {
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showingInput) {
             bodyFatInputSheet
-                .presentationDetents([.height(280)])
+                .presentationDetents([.height(300)])
                 .presentationDragIndicator(.visible)
         }
     }
@@ -158,19 +157,13 @@ struct BodyFatView: View {
                 .font(.headline)
                 .foregroundStyle(AppColors.primaryText)
 
-            HStack {
-                TextField("0.0", text: $inputValue)
-                    .keyboardType(.decimalPad)
-                    .focused($isInputFocused)
-                    .font(.system(size: 36, weight: .bold, design: .rounded).monospacedDigit())
-                    .foregroundStyle(AppColors.primaryText)
-                    .multilineTextAlignment(.center)
-
-                Text("%")
-                    .font(.title3)
-                    .foregroundStyle(AppColors.subtleText)
-            }
-            .padding(.horizontal, 32)
+            RulerSlider(
+                value: $inputDouble,
+                range: 3...50,
+                step: 0.5,
+                unit: "%"
+            )
+            .padding(.horizontal, 16)
 
             Picker("Method", selection: $selectedMethod) {
                 ForEach(BodyFatMethod.allCases) { method in
@@ -181,10 +174,9 @@ struct BodyFatView: View {
             .padding(.horizontal, 32)
 
             Button {
-                if let value = Double(inputValue), value > 0, value <= 100 {
-                    workoutManager.logBodyFat(percentage: value, method: selectedMethod)
+                if inputDouble > 0, inputDouble <= 100 {
+                    workoutManager.logBodyFat(percentage: inputDouble, method: selectedMethod)
                     showingInput = false
-                    inputValue = ""
                 }
             } label: {
                 Text("Save")

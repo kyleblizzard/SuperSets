@@ -33,7 +33,7 @@ struct ProgressDashboardView: View {
     @State private var searchText = ""
     @State private var selectedPRLift: PersonalRecord?
     @State private var showingWeightInput = false
-    @State private var weightInputText = ""
+    @State private var weightInputValue: Double = 170
     @State private var weightChartDays = 30
     @State private var personalRecords: [PersonalRecord] = []
     @Environment(HealthKitManager.self) private var healthKitManager: HealthKitManager?
@@ -78,7 +78,7 @@ struct ProgressDashboardView: View {
         }
         .sheet(isPresented: $showingWeightInput) {
             weightInputSheet
-                .presentationDetents([.height(220)])
+                .presentationDetents([.height(260)])
                 .presentationDragIndicator(.visible)
         }
         .sheet(item: $selectedPRLift) { pr in
@@ -194,9 +194,9 @@ struct ProgressDashboardView: View {
 
                 Button {
                     if let latest = workoutManager.latestWeight() {
-                        weightInputText = String(format: "%.1f", latest.weight)
+                        weightInputValue = latest.weight
                     } else if let profileWeight = workoutManager.userProfile?.bodyWeight {
-                        weightInputText = String(format: "%.0f", profileWeight)
+                        weightInputValue = profileWeight
                     }
                     showingWeightInput = true
                 } label: {
@@ -365,32 +365,25 @@ struct ProgressDashboardView: View {
     }
 
     private var weightInputSheet: some View {
-        VStack(spacing: 20) {
+        let unit = workoutManager.userProfile?.preferredUnit ?? .lbs
+
+        return VStack(spacing: 20) {
             Text("Log Weight")
                 .font(.headline)
                 .foregroundStyle(AppColors.primaryText)
 
-            let unit = workoutManager.userProfile?.preferredUnit ?? .lbs
-
-            HStack {
-                TextField("0.0", text: $weightInputText)
-                    .keyboardType(.decimalPad)
-                    .focused($isInputFocused)
-                    .font(.system(size: 36, weight: .bold, design: .rounded).monospacedDigit())
-                    .foregroundStyle(AppColors.primaryText)
-                    .multilineTextAlignment(.center)
-
-                Text(unit.rawValue)
-                    .font(.title3)
-                    .foregroundStyle(AppColors.subtleText)
-            }
-            .padding(.horizontal, 32)
+            RulerSlider(
+                value: $weightInputValue,
+                range: unit == .kg ? 25...250 : 50...500,
+                step: 0.5,
+                unit: unit.rawValue
+            )
+            .padding(.horizontal, 16)
 
             Button {
-                if let value = Double(weightInputText), value > 0 {
-                    workoutManager.logWeight(value)
+                if weightInputValue > 0 {
+                    workoutManager.logWeight(weightInputValue)
                     showingWeightInput = false
-                    weightInputText = ""
                 }
             } label: {
                 Text("Save")

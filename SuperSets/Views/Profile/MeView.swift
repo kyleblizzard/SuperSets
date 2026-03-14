@@ -103,10 +103,22 @@ struct MeView: View {
                     set: { profile.name = $0 }
                 ))
 
-                profileStepper("Age", value: Binding(
-                    get: { profile.age },
-                    set: { profile.age = $0 }
-                ), range: 13...100)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Age")
+                        .font(.subheadline)
+                        .foregroundStyle(AppColors.subtleText)
+                    Picker("Age", selection: Binding(
+                        get: { profile.age },
+                        set: { profile.age = $0 }
+                    )) {
+                        ForEach(13...100, id: \.self) { age in
+                            Text("\(age)").tag(age)
+                        }
+                    }
+                    .pickerStyle(.wheel)
+                    .frame(height: 100)
+                    .glassField(cornerRadius: 12)
+                }
 
                 HStack {
                     Text("Sex")
@@ -139,52 +151,54 @@ struct MeView: View {
             sectionHeader("Measurements", icon: "ruler.fill")
 
             if let profile = workoutManager.userProfile {
-                HStack {
+                VStack(alignment: .leading, spacing: 4) {
                     Text("Height")
                         .font(.subheadline)
                         .foregroundStyle(AppColors.subtleText)
-                    Spacer()
-                    Text(profile.formattedHeight)
-                        .font(.body.bold().monospacedDigit())
-                        .foregroundStyle(AppColors.primaryText)
-                    Stepper("", value: Binding(
-                        get: { profile.heightInches },
-                        set: { profile.heightInches = $0 }
-                    ), in: 48...96, step: 1)
-                    .labelsHidden()
-                    .frame(width: 100)
+                    RulerSlider(
+                        value: Binding(
+                            get: { profile.heightInches },
+                            set: { profile.heightInches = $0 }
+                        ),
+                        range: 48...96,
+                        step: 1,
+                        unit: "",
+                        formatValue: { val in
+                            let feet = Int(val) / 12
+                            let inches = Int(val) % 12
+                            return "\(feet)'\(inches)\""
+                        }
+                    )
                 }
 
-                HStack {
+                VStack(alignment: .leading, spacing: 4) {
                     Text("Weight")
                         .font(.subheadline)
                         .foregroundStyle(AppColors.subtleText)
-                    Spacer()
-                    Text("\(String(format: "%.0f", profile.bodyWeight)) \(profile.preferredUnit.rawValue)")
-                        .font(.body.bold().monospacedDigit())
-                        .foregroundStyle(AppColors.primaryText)
-                    Stepper("", value: Binding(
-                        get: { profile.bodyWeight },
-                        set: { profile.bodyWeight = $0 }
-                    ), in: 50...500, step: 1)
-                    .labelsHidden()
-                    .frame(width: 100)
+                    RulerSlider(
+                        value: Binding(
+                            get: { profile.bodyWeight },
+                            set: { profile.bodyWeight = $0 }
+                        ),
+                        range: profile.preferredUnit == .kg ? 25...250 : 50...500,
+                        step: 1,
+                        unit: profile.preferredUnit.rawValue
+                    )
                 }
 
-                HStack {
+                VStack(alignment: .leading, spacing: 4) {
                     Text("Waist")
                         .font(.subheadline)
                         .foregroundStyle(AppColors.subtleText)
-                    Spacer()
-                    Text("\(String(format: "%.1f", profile.waistInches))\"")
-                        .font(.body.bold().monospacedDigit())
-                        .foregroundStyle(AppColors.primaryText)
-                    Stepper("", value: Binding(
-                        get: { profile.waistInches },
-                        set: { profile.waistInches = $0 }
-                    ), in: 20...60, step: 0.5)
-                    .labelsHidden()
-                    .frame(width: 100)
+                    RulerSlider(
+                        value: Binding(
+                            get: { profile.waistInches },
+                            set: { profile.waistInches = $0 }
+                        ),
+                        range: 20...60,
+                        step: 0.5,
+                        unit: "\""
+                    )
                 }
             }
         }
@@ -221,18 +235,4 @@ struct MeView: View {
         }
     }
 
-    private func profileStepper(_ label: String, value: Binding<Int>, range: ClosedRange<Int>) -> some View {
-        HStack {
-            Text(label)
-                .font(.subheadline)
-                .foregroundStyle(AppColors.subtleText)
-            Spacer()
-            Text("\(value.wrappedValue)")
-                .font(.body.bold().monospacedDigit())
-                .foregroundStyle(AppColors.primaryText)
-            Stepper("", value: value, in: range)
-                .labelsHidden()
-                .frame(width: 100)
-        }
-    }
 }

@@ -203,21 +203,11 @@ struct SleepView: View {
             DatePicker("Wake Time", selection: $wakeTime, displayedComponents: .hourAndMinute)
                 .foregroundStyle(AppColors.primaryText)
 
-            HStack(spacing: 8) {
+            VStack(alignment: .leading, spacing: 8) {
                 Text("Quality")
                     .font(.subheadline)
                     .foregroundStyle(AppColors.subtleText)
-                Spacer()
-                ForEach(1...5, id: \.self) { star in
-                    Button {
-                        quality = star
-                    } label: {
-                        Image(systemName: star <= quality ? "star.fill" : "star")
-                            .font(.title3)
-                            .foregroundStyle(star <= quality ? AppColors.gold : AppColors.subtleText)
-                    }
-                    .buttonStyle(.plain)
-                }
+                SwipeRating(rating: $quality)
             }
 
             Button {

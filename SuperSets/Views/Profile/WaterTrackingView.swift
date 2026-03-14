@@ -13,7 +13,7 @@ struct WaterTrackingView: View {
 
     @Bindable var workoutManager: WorkoutManager
     @State private var dailyGoal: Double = 128 // oz
-    @State private var customAmount = ""
+    @State private var customAmountDouble: Double = 16
     @State private var showingCustomInput = false
 
     @Query(sort: \WaterEntry.date, order: .reverse)
@@ -128,7 +128,7 @@ struct WaterTrackingView: View {
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showingCustomInput) {
             customWaterSheet
-                .presentationDetents([.height(200)])
+                .presentationDetents([.height(260)])
                 .presentationDragIndicator(.visible)
         }
     }
@@ -156,24 +156,19 @@ struct WaterTrackingView: View {
                 .font(.headline)
                 .foregroundStyle(AppColors.primaryText)
 
-            HStack {
-                TextField("Amount", text: $customAmount)
-                    .keyboardType(.decimalPad)
-                    .font(.system(size: 32, weight: .bold, design: .rounded).monospacedDigit())
-                    .foregroundStyle(AppColors.primaryText)
-                    .multilineTextAlignment(.center)
-
-                Text("oz")
-                    .font(.title3)
-                    .foregroundStyle(AppColors.subtleText)
-            }
-            .padding(.horizontal, 32)
+            RulerSlider(
+                value: $customAmountDouble,
+                range: 1...64,
+                step: 1,
+                unit: "oz"
+            )
+            .padding(.horizontal, 16)
 
             Button {
-                if let amount = Double(customAmount), amount > 0 {
-                    addWater(amount: amount)
+                if customAmountDouble > 0 {
+                    addWater(amount: customAmountDouble)
                     showingCustomInput = false
-                    customAmount = ""
+                    customAmountDouble = 16
                 }
             } label: {
                 Text("Add")
